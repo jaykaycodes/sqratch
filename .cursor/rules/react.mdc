@@ -1,0 +1,7 @@
+---
+description: all tasks related to the react frontend
+globs: src/**/*.ts, src/**/*.tsx
+---
+- use `#/` to import anything from the root src dir (not `@/`)
+- always use the default synthetic `import React from 'react'` and react utilities as e.g. `React.useMemo` instead of importing `useMemo` from `'react'`.
+- import icons from lucide using `import * as Icons from 'lucide-react'`

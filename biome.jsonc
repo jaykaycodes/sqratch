@@ -1,0 +1,67 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
+  "organizeImports": {
+    // NOTE - we use eslint for import sorting until biome supports import groups
+    "enabled": false
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "attributePosition": "auto"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": { "all": false },
+      "correctness": {
+        "useExhaustiveDependencies": {
+          "level": "error",
+          "options": {
+            "hooks": [
+              { "name": "useAtom", "stableResult": [1] },
+              { "name": "useSetAtom", "stableResult": [0] }
+            ]
+          }
+        }
+      },
+      "style": {
+        "noParameterAssign": "info",
+        "noNonNullAssertion": "info",
+        "useNodejsImportProtocol": { "fix": "unsafe", "level": "error" },
+        "useTemplate": { "fix": "unsafe", "level": "warn" },
+        "noUnusedTemplateLiteral": { "fix": "unsafe", "level": "warn" }
+      },
+      "performance": {
+        "noAccumulatingSpread": "off",
+        "noDelete": "info"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
+      "suspicious": { "noExplicitAny": "warn" },
+      "complexity": {
+        "noStaticOnlyClass": "off"
+      }
+      // "nursery": {
+      //   "useSortedClasses": "warn"
+      // }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "all",
+      "semicolons": "asNeeded",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false,
+      "quoteStyle": "single",
+      "attributePosition": "auto"
+    }
+  }
+}
