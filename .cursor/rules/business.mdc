@@ -15,7 +15,7 @@ Channel the energies of Elon Musk, Peter Thiel, and Paul Graham when ideating on
 
 ## Key Features
 1. **Live Code-Data Bridge**  
-   - Reads TypeScript schemas (Drizzle/Prisma) from git, syncs with Postgres in real-time.
+   - Reads TypeScript schemas (Drizzle/Prisma) and env vars from the user's project to make smarter and more integrated flows for developers working with their database.
    - Write a query in VS Code, see results in Sqratch instantly—code and data as one.
 
 2. **Proactive AI**  

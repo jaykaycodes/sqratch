@@ -20,6 +20,8 @@ pub enum DbError {
     Unsupported(String),
     /// Transaction error
     Transaction(String),
+    /// SQL parsing error
+    Parsing(String),
     /// Other error
     Other(String),
 }
@@ -35,6 +37,7 @@ impl fmt::Display for DbError {
             DbError::Auth(msg) => write!(f, "Authentication error: {}", msg),
             DbError::Unsupported(msg) => write!(f, "Operation not supported: {}", msg),
             DbError::Transaction(msg) => write!(f, "Transaction error: {}", msg),
+            DbError::Parsing(msg) => write!(f, "SQL parsing error: {}", msg),
             DbError::Other(msg) => write!(f, "Database error: {}", msg),
         }
     }

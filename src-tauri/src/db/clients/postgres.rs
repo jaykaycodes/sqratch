@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use sqlx::{
-    postgres::{PgConnectOptions, PgPoolOptions, PgRow},
-    Pool, Postgres, Row,
+    postgres::{PgConnectOptions, PgPoolOptions},
+    Column, Pool, Postgres, Row,
 };
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
@@ -15,7 +16,7 @@ use crate::db::types::{
 };
 use crate::db::utils::{
     parsing::split_sql_statements,
-    serialization::{create_query_result, sqlx_row_to_row},
+    serialization::{create_query_result, pg_row_to_row},
 };
 
 /// PostgreSQL database client
@@ -104,16 +105,14 @@ impl DatabaseClient for PostgresClient {
             options
         };
 
-        // Create the connection pool
+        // Connect to the database
         let pool = PgPoolOptions::new()
-            .max_connections(5)
+            .max_connections(10) // Reasonable default
             .connect_with(options)
             .await
             .map_err(|e| DbError::Connection(e.to_string()))?;
 
-        // Store the pool
         *pool_guard = Some(pool);
-
         Ok(())
     }
 
@@ -129,7 +128,6 @@ impl DatabaseClient for PostgresClient {
 
     async fn execute_query(&self, sql: &str) -> DbResult<QueryResult> {
         let pool = self.get_pool().await?;
-
         let start = Instant::now();
 
         let result = if sql.trim_start().to_uppercase().starts_with("SELECT") {
@@ -147,38 +145,22 @@ impl DatabaseClient for PostgresClient {
                         let column = first_row.column(i);
                         ColumnDefinition {
                             name: column.name().to_string(),
-                            data_type: column.type_info().name().to_string(),
-                            nullable: column.type_info().is_nullable(),
+                            data_type: column.type_info().to_string(),
+                            nullable: false, // We don't know this from the query result, setting to false for now
                             primary_key: false, // We don't know this from the query result
                             default_value: None, // We don't know this from the query result
                         }
                     })
                     .collect()
             } else {
-                // If no rows, try to get column info from the query
-                let statement = sqlx::query(sql)
-                    .describe(&pool)
-                    .await
-                    .map_err(|e| DbError::Query(e.to_string()))?;
-
-                statement.columns()
-                    .iter()
-                    .map(|column| {
-                        ColumnDefinition {
-                            name: column.name().to_string(),
-                            data_type: column.type_info().name().to_string(),
-                            nullable: column.type_info().is_nullable(),
-                            primary_key: false,
-                            default_value: None,
-                        }
-                    })
-                    .collect()
+                // If no rows, we don't have column info
+                Vec::new()
             };
 
             // Convert rows to our format
             let result_rows = rows
                 .iter()
-                .map(|row| sqlx_row_to_row(row, &columns))
+                .map(|row| pg_row_to_row(row, &columns))
                 .collect::<Result<Vec<_>, _>>()?;
 
             create_query_result(
@@ -210,60 +192,23 @@ impl DatabaseClient for PostgresClient {
     }
 
     async fn execute_queries(&self, sql: &str) -> DbResult<Vec<QueryResult>> {
-        let statements = split_sql_statements(sql);
+        let statements = split_sql_statements(sql)?;
         let mut results = Vec::with_capacity(statements.len());
 
-        for (i, statement) in statements.iter().enumerate() {
-            if statement.trim().is_empty() {
-                continue;
-            }
-
-            let mut result = self.execute_query(statement).await?;
-            result.result_index = i;
-            results.push(result);
+        for statement in statements {
+            results.push(self.execute_query(&statement).await?);
         }
 
         Ok(results)
     }
 
     async fn test_connection(&self) -> DbResult<()> {
-        // Create a temporary pool for testing
-        let options = if let Some(ref conn_str) = self.connection_info.connection_string {
-            PgConnectOptions::from_str(conn_str)
-                .map_err(|e| DbError::Connection(e.to_string()))?
-        } else {
-            // Build from components
-            let host = self.connection_info.host.as_deref()
-                .ok_or_else(|| DbError::Config("Host is required".to_string()))?;
-            let port = self.connection_info.port.unwrap_or(5432);
-            let database = self.connection_info.database.as_deref()
-                .ok_or_else(|| DbError::Config("Database name is required".to_string()))?;
-            let username = self.connection_info.username.as_deref()
-                .ok_or_else(|| DbError::Config("Username is required".to_string()))?;
-            let password = self.connection_info.password.as_deref().unwrap_or("");
+        let pool = self.get_pool().await?;
 
-            PgConnectOptions::new()
-                .host(host)
-                .port(port)
-                .database(database)
-                .username(username)
-                .password(password)
-        };
-
-        let pool = PgPoolOptions::new()
-            .max_connections(1)
-            .connect_with(options)
-            .await
-            .map_err(|e| DbError::Connection(e.to_string()))?;
-
-        // Execute a simple query to verify the connection
         sqlx::query("SELECT 1")
             .execute(&pool)
             .await
-            .map_err(|e| DbError::Query(e.to_string()))?;
-
-        // Close the pool
-        pool.close().await;
+            .map_err(|e| DbError::Connection(e.to_string()))?;
 
         Ok(())
     }
@@ -271,26 +216,48 @@ impl DatabaseClient for PostgresClient {
     async fn get_schema_info(&self) -> DbResult<SchemaInfo> {
         let pool = self.get_pool().await?;
 
-        // Get database name
-        let database_row = sqlx::query("SELECT current_database()")
-            .fetch_one(&pool)
+        // Get list of schemas
+        let schema_query = r#"
+            SELECT
+                schema_name AS name
+            FROM
+                information_schema.schemata
+            WHERE
+                schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+                AND schema_name NOT LIKE 'pg_%'
+            ORDER BY
+                schema_name
+        "#;
+
+        let schemas = sqlx::query(schema_query)
+            .fetch_all(&pool)
             .await
             .map_err(|e| DbError::Query(e.to_string()))?;
 
-        let database = database_row.get::<String, _>(0);
+        // Default to public schema if none found
+        if schemas.is_empty() {
+            let tables = self.get_tables().await?;
+            let views = self.get_views().await?;
+            let functions = self.get_functions().await?;
 
-        // Get tables
+            return Ok(SchemaInfo {
+                name: "public".to_string(),
+                tables,
+                views,
+                functions,
+            });
+        }
+
+        // Just use the first schema for now
+        // In the future, we might want to return multiple schemas
+        let schema_name: String = schemas[0].get("name");
+
         let tables = self.get_tables().await?;
-
-        // Get views
         let views = self.get_views().await?;
-
-        // Get functions
         let functions = self.get_functions().await?;
 
         Ok(SchemaInfo {
-            database,
-            schema: Some("public".to_string()), // Default to public schema
+            name: schema_name,
             tables,
             views,
             functions,
@@ -300,23 +267,22 @@ impl DatabaseClient for PostgresClient {
     async fn get_tables(&self) -> DbResult<Vec<TableInfo>> {
         let pool = self.get_pool().await?;
 
-        // Query to get tables
-        let rows = sqlx::query(r#"
+        let query = r#"
             SELECT
-                t.table_name,
-                t.table_schema,
-                obj_description(pgc.oid, 'pg_class') as comment,
-                (SELECT COUNT(*) FROM information_schema.columns
-                 WHERE table_name = t.table_name AND table_schema = t.table_schema) as column_count,
-                pg_total_relation_size(pgc.oid) as size_bytes,
-                (SELECT reltuples::bigint FROM pg_class WHERE oid = pgc.oid) as row_count
-            FROM information_schema.tables t
-            JOIN pg_catalog.pg_class pgc ON pgc.relname = t.table_name
-            JOIN pg_catalog.pg_namespace n ON pgc.relnamespace = n.oid AND n.nspname = t.table_schema
-            WHERE t.table_type = 'BASE TABLE'
-            AND t.table_schema NOT IN ('pg_catalog', 'information_schema')
-            ORDER BY t.table_schema, t.table_name
-        "#)
+                t.table_name AS name,
+                t.table_schema AS schema,
+                obj_description(format('%s.%s', t.table_schema, t.table_name)::regclass::oid) AS comment
+            FROM
+                information_schema.tables t
+            WHERE
+                t.table_type = 'BASE TABLE'
+                AND t.table_schema NOT IN ('information_schema', 'pg_catalog')
+                AND t.table_schema NOT LIKE 'pg_%'
+            ORDER BY
+                t.table_schema, t.table_name
+        "#;
+
+        let rows = sqlx::query(query)
             .fetch_all(&pool)
             .await
             .map_err(|e| DbError::Query(e.to_string()))?;
@@ -324,21 +290,15 @@ impl DatabaseClient for PostgresClient {
         let mut tables = Vec::with_capacity(rows.len());
 
         for row in rows {
-            let name: String = row.get("table_name");
-            let schema: String = row.get("table_schema");
+            let name: String = row.get("name");
+            let schema: String = row.get("schema");
             let comment: Option<String> = row.get("comment");
-            let size_bytes: Option<i64> = row.get("size_bytes");
-            let row_count: Option<i64> = row.get("row_count");
 
-            // Get columns for this table
-            let columns = self.get_table_columns(&name, Some(&schema)).await?;
-
+            // We'll populate columns later when needed
             tables.push(TableInfo {
                 name,
-                schema: Some(schema),
-                columns,
-                row_count: row_count.map(|c| c as u64),
-                size_bytes: size_bytes.map(|s| s as u64),
+                schema,
+                columns: vec![],
                 comment,
             });
         }
@@ -349,19 +309,21 @@ impl DatabaseClient for PostgresClient {
     async fn get_views(&self) -> DbResult<Vec<ViewInfo>> {
         let pool = self.get_pool().await?;
 
-        // Query to get views
-        let rows = sqlx::query(r#"
+        let query = r#"
             SELECT
-                v.table_name,
-                v.table_schema,
-                v.view_definition,
-                obj_description(pgc.oid, 'pg_class') as comment
-            FROM information_schema.views v
-            JOIN pg_catalog.pg_class pgc ON pgc.relname = v.table_name
-            JOIN pg_catalog.pg_namespace n ON pgc.relnamespace = n.oid AND n.nspname = v.table_schema
-            WHERE v.table_schema NOT IN ('pg_catalog', 'information_schema')
-            ORDER BY v.table_schema, v.table_name
-        "#)
+                v.table_name AS name,
+                v.table_schema AS schema,
+                v.view_definition AS definition
+            FROM
+                information_schema.views v
+            WHERE
+                v.table_schema NOT IN ('information_schema', 'pg_catalog')
+                AND v.table_schema NOT LIKE 'pg_%'
+            ORDER BY
+                v.table_schema, v.table_name
+        "#;
+
+        let rows = sqlx::query(query)
             .fetch_all(&pool)
             .await
             .map_err(|e| DbError::Query(e.to_string()))?;
@@ -369,20 +331,16 @@ impl DatabaseClient for PostgresClient {
         let mut views = Vec::with_capacity(rows.len());
 
         for row in rows {
-            let name: String = row.get("table_name");
-            let schema: String = row.get("table_schema");
-            let definition: Option<String> = row.get("view_definition");
-            let comment: Option<String> = row.get("comment");
+            let name: String = row.get("name");
+            let schema: String = row.get("schema");
+            let definition: Option<String> = row.get("definition");
 
-            // Get columns for this view
-            let columns = self.get_table_columns(&name, Some(&schema)).await?;
-
+            // We'll populate columns later when needed
             views.push(ViewInfo {
                 name,
-                schema: Some(schema),
+                schema,
+                columns: vec![],
                 definition,
-                columns,
-                comment,
             });
         }
 
@@ -392,21 +350,25 @@ impl DatabaseClient for PostgresClient {
     async fn get_functions(&self) -> DbResult<Vec<FunctionInfo>> {
         let pool = self.get_pool().await?;
 
-        // Query to get functions
-        let rows = sqlx::query(r#"
+        let query = r#"
             SELECT
-                p.proname as name,
-                n.nspname as schema,
-                pg_get_functiondef(p.oid) as definition,
-                l.lanname as language,
-                pg_get_function_result(p.oid) as return_type,
-                obj_description(p.oid, 'pg_proc') as comment
-            FROM pg_proc p
-            JOIN pg_namespace n ON p.pronamespace = n.oid
-            JOIN pg_language l ON p.prolang = l.oid
-            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
-            ORDER BY n.nspname, p.proname
-        "#)
+                p.proname AS name,
+                n.nspname AS schema,
+                pg_get_function_result(p.oid) AS return_type,
+                pg_get_function_arguments(p.oid) AS arguments,
+                pg_get_functiondef(p.oid) AS definition
+            FROM
+                pg_proc p
+                INNER JOIN pg_namespace n ON p.pronamespace = n.oid
+            WHERE
+                n.nspname NOT IN ('information_schema', 'pg_catalog')
+                AND n.nspname NOT LIKE 'pg_%'
+                AND p.prokind = 'f'
+            ORDER BY
+                n.nspname, p.proname
+        "#;
+
+        let rows = sqlx::query(query)
             .fetch_all(&pool)
             .await
             .map_err(|e| DbError::Query(e.to_string()))?;
@@ -416,21 +378,23 @@ impl DatabaseClient for PostgresClient {
         for row in rows {
             let name: String = row.get("name");
             let schema: String = row.get("schema");
-            let definition: Option<String> = row.get("definition");
-            let language: Option<String> = row.get("language");
             let return_type: Option<String> = row.get("return_type");
-            let comment: Option<String> = row.get("comment");
+            let arguments_str: Option<String> = row.get("arguments");
+            let definition: Option<String> = row.get("definition");
 
-            // TODO: Add function arguments
+            // Parse arguments
+            let arguments = arguments_str.map_or_else(Vec::new, |args| {
+                args.split(',')
+                    .map(|arg| arg.trim().to_string())
+                    .collect()
+            });
 
             functions.push(FunctionInfo {
                 name,
-                schema: Some(schema),
-                language,
-                definition,
-                arguments: Vec::new(),
+                schema,
+                arguments,
                 return_type,
-                comment,
+                definition,
             });
         }
 
@@ -441,42 +405,39 @@ impl DatabaseClient for PostgresClient {
         let pool = self.get_pool().await?;
         let schema = schema.unwrap_or("public");
 
-        // Query to get table info
-        let row = sqlx::query(r#"
-            SELECT
-                t.table_name,
-                t.table_schema,
-                obj_description(pgc.oid, 'pg_class') as comment,
-                pg_total_relation_size(pgc.oid) as size_bytes,
-                (SELECT reltuples::bigint FROM pg_class WHERE oid = pgc.oid) as row_count
-            FROM information_schema.tables t
-            JOIN pg_catalog.pg_class pgc ON pgc.relname = t.table_name
-            JOIN pg_catalog.pg_namespace n ON pgc.relnamespace = n.oid AND n.nspname = t.table_schema
-            WHERE t.table_type = 'BASE TABLE'
-            AND t.table_schema = $1
-            AND t.table_name = $2
-        "#)
-            .bind(schema)
-            .bind(table_name)
-            .fetch_one(&pool)
-            .await
-            .map_err(|e| DbError::Query(e.to_string()))?;
+        // Check if table exists
+        let exists: Option<i32> = sqlx::query_scalar(
+            "SELECT 1 FROM information_schema.tables
+             WHERE table_schema = $1 AND table_name = $2
+             AND table_type = 'BASE TABLE'"
+        )
+        .bind(schema)
+        .bind(table_name)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| DbError::Query(e.to_string()))?;
 
-        let name: String = row.get("table_name");
-        let schema: String = row.get("table_schema");
-        let comment: Option<String> = row.get("comment");
-        let size_bytes: Option<i64> = row.get("size_bytes");
-        let row_count: Option<i64> = row.get("row_count");
+        if exists.is_none() {
+            return Err(DbError::NotFound(format!("Table '{}.{}' not found", schema, table_name)));
+        }
 
-        // Get columns for this table
-        let columns = self.get_table_columns(&name, Some(&schema)).await?;
+        // Get table comment
+        let comment: Option<String> = sqlx::query_scalar(
+            "SELECT obj_description(format('%s.%s', $1, $2)::regclass::oid)"
+        )
+        .bind(schema)
+        .bind(table_name)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| DbError::Query(e.to_string()))?;
+
+        // Get column information
+        let columns = self.get_table_columns(table_name, Some(schema)).await?;
 
         Ok(TableInfo {
-            name,
-            schema: Some(schema),
+            name: table_name.to_string(),
+            schema: schema.to_string(),
             columns,
-            row_count: row_count.map(|c| c as u64),
-            size_bytes: size_bytes.map(|s| s as u64),
             comment,
         })
     }
@@ -521,43 +482,41 @@ impl PostgresClient {
                     AND tc.table_name = c.table_name
                     AND kcu.column_name = c.column_name
                 ) > 0 as is_primary_key
-            FROM information_schema.columns c
-            JOIN pg_catalog.pg_class pgc ON pgc.relname = c.table_name
-            JOIN pg_catalog.pg_namespace n ON pgc.relnamespace = n.oid AND n.nspname = c.table_schema
-            WHERE c.table_schema = $1
-            AND c.table_name = $2
-            ORDER BY c.ordinal_position
+            FROM
+                information_schema.columns c
+                JOIN pg_class pgc ON c.table_name = pgc.relname
+                JOIN pg_namespace pgn ON pgc.relnamespace = pgn.oid AND c.table_schema = pgn.nspname
+            WHERE
+                c.table_schema = $1
+                AND c.table_name = $2
+            ORDER BY
+                c.ordinal_position
         "#)
-            .bind(schema)
-            .bind(table_name)
-            .fetch_all(&pool)
-            .await
-            .map_err(|e| DbError::Query(e.to_string()))?;
+        .bind(schema)
+        .bind(table_name)
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| DbError::Query(e.to_string()))?;
 
         let mut columns = Vec::with_capacity(rows.len());
 
         for row in rows {
-            let name: String = row.get("column_name");
+            let column_name: String = row.get("column_name");
             let position: i32 = row.get("ordinal_position");
             let data_type: String = row.get("data_type");
-            let char_max_length: Option<i32> = row.get("character_maximum_length");
-            let nullable: bool = row.get("is_nullable");
-            let default_value: Option<String> = row.get("column_default");
+            let is_nullable: bool = row.get("is_nullable");
+            let column_default: Option<String> = row.get("column_default");
             let comment: Option<String> = row.get("comment");
             let is_primary_key: bool = row.get("is_primary_key");
 
-            // TODO: Add foreign key reference
-
             columns.push(crate::db::types::ColumnInfo {
-                name,
-                position,
+                name: column_name,
                 data_type,
-                char_max_length,
-                nullable,
-                default_value,
+                nullable: is_nullable,
+                primary_key: is_primary_key,
+                default_value: column_default,
                 comment,
-                is_primary_key,
-                foreign_key_ref: None,
+                position: Some(position as u32),
             });
         }
 
@@ -594,8 +553,8 @@ impl Transaction for PostgresTransaction {
                         let column = first_row.column(i);
                         ColumnDefinition {
                             name: column.name().to_string(),
-                            data_type: column.type_info().name().to_string(),
-                            nullable: column.type_info().is_nullable(),
+                            data_type: column.type_info().to_string(),
+                            nullable: false, // We don't know this from the query result, setting to false for now
                             primary_key: false, // We don't know this from the query result
                             default_value: None, // We don't know this from the query result
                         }
@@ -609,7 +568,7 @@ impl Transaction for PostgresTransaction {
             // Convert rows to our format
             let result_rows = rows
                 .iter()
-                .map(|row| sqlx_row_to_row(row, &columns))
+                .map(|row| pg_row_to_row(row, &columns))
                 .collect::<Result<Vec<_>, _>>()?;
 
             create_query_result(

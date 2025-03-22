@@ -96,3 +96,4 @@ impl DatabaseClient for SqliteClient {
         Err(DbError::Unsupported("SQLite support not yet implemented".to_string()))
     }
 }
+

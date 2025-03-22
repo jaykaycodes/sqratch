@@ -80,9 +80,6 @@ impl DatabaseManager {
 
             // Disconnect the client
             client.disconnect().await?;
-
-            // Reacquire the lock
-            clients = self.clients.write().await;
         }
 
         // Now remove the connection
@@ -294,7 +291,7 @@ pub fn create_db_manager() -> DatabaseManager {
 }
 
 /// Helper function to parse connection information from project path or env var
-pub fn parse_connection_config(
+pub async fn parse_connection_config(
     project_path: Option<&str>,
     env_var: Option<&str>,
 ) -> DbResult<Option<ConnectionInfo>> {

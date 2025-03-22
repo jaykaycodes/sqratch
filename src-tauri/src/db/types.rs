@@ -104,7 +104,12 @@ impl ConnectionInfo {
                 let port = self.port.unwrap_or_else(|| self.default_port());
                 let database = self.database.as_ref().ok_or_else(|| "Database name is required".to_string())?;
                 let username = self.username.as_ref().ok_or_else(|| "Username is required".to_string())?;
-                let password = self.password.as_ref().unwrap_or(&"".to_string());
+
+                // Create a longer-lived password value
+                let password = match self.password.as_ref() {
+                    Some(p) => p,
+                    None => "",
+                };
 
                 let prefix = match self.db_type {
                     DatabaseType::Postgres => "postgres",
@@ -191,10 +196,8 @@ pub struct Row {
 /// Database schema information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaInfo {
-    /// Database name
-    pub database: String,
-    /// Schema name (if applicable)
-    pub schema: Option<String>,
+    /// Schema name
+    pub name: String,
     /// Tables in this schema
     pub tables: Vec<TableInfo>,
     /// Views in this schema
@@ -209,13 +212,9 @@ pub struct TableInfo {
     /// Table name
     pub name: String,
     /// Schema name
-    pub schema: Option<String>,
+    pub schema: String,
     /// Table columns
     pub columns: Vec<ColumnInfo>,
-    /// Approximate row count (if available)
-    pub row_count: Option<u64>,
-    /// Table size in bytes (if available)
-    pub size_bytes: Option<u64>,
     /// Table comment/description
     pub comment: Option<String>,
 }
@@ -225,37 +224,18 @@ pub struct TableInfo {
 pub struct ColumnInfo {
     /// Column name
     pub name: String,
-    /// Column position in the table
-    pub position: i32,
     /// Column data type
     pub data_type: String,
-    /// Column character maximum length (if applicable)
-    pub char_max_length: Option<i32>,
     /// Whether the column can be null
     pub nullable: bool,
+    /// Whether the column is a primary key
+    pub primary_key: bool,
     /// Default value for the column
     pub default_value: Option<String>,
     /// Column comment/description
     pub comment: Option<String>,
-    /// Whether the column is part of the primary key
-    pub is_primary_key: bool,
-    /// Foreign key reference (if applicable)
-    pub foreign_key_ref: Option<ForeignKeyRef>,
-}
-
-/// Foreign key reference
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ForeignKeyRef {
-    /// Referenced schema
-    pub ref_schema: Option<String>,
-    /// Referenced table
-    pub ref_table: String,
-    /// Referenced column
-    pub ref_column: String,
-    /// On delete action
-    pub on_delete: Option<String>,
-    /// On update action
-    pub on_update: Option<String>,
+    /// Column position in the table (optional)
+    pub position: Option<u32>,
 }
 
 /// View information
@@ -264,13 +244,11 @@ pub struct ViewInfo {
     /// View name
     pub name: String,
     /// Schema name
-    pub schema: Option<String>,
-    /// View definition
-    pub definition: Option<String>,
+    pub schema: String,
     /// View columns
     pub columns: Vec<ColumnInfo>,
-    /// View comment/description
-    pub comment: Option<String>,
+    /// View definition
+    pub definition: Option<String>,
 }
 
 /// Function information
@@ -279,28 +257,11 @@ pub struct FunctionInfo {
     /// Function name
     pub name: String,
     /// Schema name
-    pub schema: Option<String>,
-    /// Function language
-    pub language: Option<String>,
-    /// Function definition
-    pub definition: Option<String>,
+    pub schema: String,
     /// Function arguments
-    pub arguments: Vec<FunctionArgument>,
+    pub arguments: Vec<String>,
     /// Function return type
     pub return_type: Option<String>,
-    /// Function comment/description
-    pub comment: Option<String>,
-}
-
-/// Function argument
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FunctionArgument {
-    /// Argument name
-    pub name: Option<String>,
-    /// Argument data type
-    pub data_type: String,
-    /// Argument mode (IN, OUT, INOUT)
-    pub mode: Option<String>,
-    /// Default value
-    pub default_value: Option<String>,
+    /// Function definition
+    pub definition: Option<String>,
 }
