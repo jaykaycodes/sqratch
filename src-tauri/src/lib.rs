@@ -7,12 +7,11 @@ use std::sync::Arc;
 mod db;
 mod commands;
 mod startup;
+mod cli;
 
-// Re-export modules with public interface
-use db::{
-    ConnectionInfo, DatabaseType, DatabaseManager,
-    create_db_manager, parse_connection_config, DbResult,
-};
+// Import and re-export key types for the frontend
+pub use db::types::{ConnectionInfo, DatabaseType};
+pub use db::manager::{DatabaseManager, create_db_manager, parse_connection_config};
 
 // State for database manager
 pub struct AppState {
@@ -31,18 +30,14 @@ pub fn run() {
         .manage(AppState {
             db_manager: db_manager.clone(),
         })
-        .setup(|app| {
+        .setup(move |app| {
             // Configure file system permissions
             startup::configure_fs_permissions(app);
 
-            // Get project path from CLI or environment
-            if let Some(path) = startup::get_project_path(app) {
-                // Handle project path and database connection
-                let db_manager_clone = db_manager.clone();
-                let path_clone = path.clone();
-                tauri::async_runtime::spawn(async move {
-                    startup::handle_project_path_async(path_clone, db_manager_clone).await;
-                });
+            // Process CLI arguments from initial launch
+            let db_manager_clone = db_manager.clone();
+            if let Err(e) = cli::process_cli_args(app, db_manager_clone) {
+                eprintln!("Failed to process CLI arguments: {}", e);
             }
 
             Ok(())

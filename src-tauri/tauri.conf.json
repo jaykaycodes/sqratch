@@ -37,15 +37,18 @@
       "requireLiteralLeadingDot": false
     },
     "cli": {
-      "description": "Sqratch CLI",
+      "description": "Sqratch SQL Database Client",
+      "beforeHelp": "",
+      "afterHelp": "",
       "args": [
         {
-          "name": "project-path",
-          "description": "Path to the project directory",
-          "takesValue": true,
-          "required": false
+          "name": "project",
+          "description": "Path to the project directory containing a .sqratch/ directory",
+          "index": 1,
+          "takesValue": true
         }
-      ]
+      ],
+      "subcommands": {}
     }
   }
 }

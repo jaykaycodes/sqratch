@@ -1,6 +1,5 @@
-use std::sync::Arc;
 use crate::db::{
-    ConnectionInfo, DatabaseManager, DbResult, QueryResult,
+    ConnectionInfo, QueryResult,
 };
 
 #[tauri::command]
@@ -29,6 +28,7 @@ pub async fn connect_to_database(
     state: tauri::State<'_, super::AppState>
 ) -> Result<(), String> {
     state.db_manager.connect(&connection_id).await
+        .map(|_| ()) // Ignore the client return value
         .map_err(|e| e.to_string())
 }
 

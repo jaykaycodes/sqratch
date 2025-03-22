@@ -1,30 +1,7 @@
 use std::sync::Arc;
 use tauri_plugin_fs::FsExt;
-use tauri_plugin_cli::CliExt;
-use crate::db::{DatabaseManager, parse_connection_config};
-use crate::AppState;
-
-pub fn get_project_path(app: &tauri::App) -> Option<String> {
-    // Get CLI arguments
-    let mut project_path: Option<String> = None;
-
-    if let Ok(matches) = app.cli().matches() {
-        if let Some(path_arg) = matches.args.get("project-path") {
-            project_path = path_arg.value.as_str().map(|s| s.to_string());
-            println!("Project path argument: {}", path_arg.value.as_str().unwrap_or(""));
-        }
-    }
-
-    // Also check environment variable
-    if project_path.is_none() {
-        project_path = std::env::var("SQRATCH_PROJECT_PATH").ok();
-        if let Some(ref path) = project_path {
-            println!("Project path from env: {}", path);
-        }
-    }
-
-    project_path
-}
+use crate::DatabaseManager;
+use crate::db::manager::parse_connection_config;
 
 pub async fn handle_project_path_async(path: String, db_manager: Arc<DatabaseManager>) {
     println!("Attempting to find database connections for project at: {}", path);
@@ -81,7 +58,28 @@ pub async fn handle_project_path_async(path: String, db_manager: Arc<DatabaseMan
 pub fn configure_fs_permissions(app: &tauri::App) {
     // Configure file system permissions
     let fs_scope = app.fs_scope();
+
+    // Allow the .sqratch directory anywhere - needed for loading projects
     if let Err(e) = fs_scope.allow_directory("**/.sqratch", true) {
-        eprintln!("Failed to set fs permissions: {}", e);
+        eprintln!("Failed to set fs permissions for .sqratch: {}", e);
+    }
+
+    // Allow broader directories for CLI usage
+    // This allows the CLI to access typical project directories
+    if let Err(e) = fs_scope.allow_directory("**", false) {
+        eprintln!("Failed to set broader fs permissions: {}", e);
+    }
+
+    // For common user directories
+    if let Ok(home) = std::env::var("HOME") {
+        if let Err(e) = fs_scope.allow_directory(&home, true) {
+            eprintln!("Failed to set permissions for home directory: {}", e);
+        }
+    }
+
+    if let Ok(userprofile) = std::env::var("USERPROFILE") {
+        if let Err(e) = fs_scope.allow_directory(&userprofile, true) {
+            eprintln!("Failed to set permissions for user profile: {}", e);
+        }
     }
 }
