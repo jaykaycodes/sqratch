@@ -1,0 +1,14 @@
+{
+  "connectionVariable": "DATABASE_URL",
+  // "connectionParams": {
+  //   "host": "DB_HOST",
+  //   "port": "DB_PORT",
+  //   "database": "DB_NAME",
+  //   "user": "DB_USER",
+  //   "password": "DB_PASSWORD"
+  // },
+  "settings": {
+    "projectName": "Sqratch Test Project",
+    "saveQueries": true
+  }
+}

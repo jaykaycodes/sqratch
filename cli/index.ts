@@ -1,15 +1,42 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
-const fs = require('node:fs')
-const path = require('node:path')
-const { spawn } = require('node:child_process')
-const os = require('node:os')
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, join, resolve } from 'node:path'
+
+interface EnvVars {
+  [key: string]: string
+}
+
+interface ConnectionParams {
+  host: string
+  port: string
+  database: string
+  user: string
+  password: string
+}
+
+interface ProjectConfig {
+  connectionVariable: string
+  connectionParams: ConnectionParams
+  settings: {
+    projectName: string
+    saveQueries: boolean
+  }
+}
+
+interface ConnectionInfo {
+  name: string
+  connectionString: string
+  timestamp: number
+  path: string
+}
 
 // Simple .env file parser
-function parseEnvFile(filePath) {
+function parseEnvFile(filePath: string): EnvVars | null {
   try {
-    const content = fs.readFileSync(filePath, 'utf8')
-    const result = {}
+    const content = readFileSync(filePath, 'utf8')
+    const result: EnvVars = {}
 
     // Split by lines and process each line
     for (const line of content.split('\n')) {
@@ -43,19 +70,19 @@ function parseEnvFile(filePath) {
 }
 
 // Find and load environment variables from various files
-function loadEnvVars() {
+function loadEnvVars(): EnvVars {
   const cwd = process.cwd()
   const possibleFiles = [
-    path.resolve(cwd, '.env'),
-    path.resolve(cwd, '.env.local'),
-    path.resolve(cwd, '.env.development'),
-    path.resolve(cwd, '.env.development.local'),
+    resolve(cwd, '.env'),
+    resolve(cwd, '.env.local'),
+    resolve(cwd, '.env.development'),
+    resolve(cwd, '.env.development.local'),
   ]
 
-  let envVars = {}
+  let envVars: EnvVars = {}
 
   for (const file of possibleFiles) {
-    if (fs.existsSync(file)) {
+    if (existsSync(file)) {
       console.log(`Found env file: ${file}`)
       const vars = parseEnvFile(file)
       if (vars) {
@@ -68,36 +95,36 @@ function loadEnvVars() {
 }
 
 // Get or create the project-local Sqratch directory
-function getProjectSqratchDir() {
+function getProjectSqratchDir(): string {
   const cwd = process.cwd()
-  const sqratchDir = path.join(cwd, '.sqratch')
+  const sqratchDir = join(cwd, '.sqratch')
 
-  if (!fs.existsSync(sqratchDir)) {
-    fs.mkdirSync(sqratchDir, { recursive: true })
+  if (!existsSync(sqratchDir)) {
+    mkdirSync(sqratchDir, { recursive: true })
 
     // Create subdirectories for organization
-    fs.mkdirSync(path.join(sqratchDir, 'connections'), { recursive: true })
-    fs.mkdirSync(path.join(sqratchDir, 'queries'), { recursive: true })
+    mkdirSync(join(sqratchDir, 'connections'), { recursive: true })
+    mkdirSync(join(sqratchDir, 'queries'), { recursive: true })
   }
 
   return sqratchDir
 }
 
 // Load or create project config file
-function getProjectConfig() {
+function getProjectConfig(): ProjectConfig {
   const sqratchDir = getProjectSqratchDir()
-  const configPath = path.join(sqratchDir, 'config.json')
+  const configPath = join(sqratchDir, 'config.json')
 
-  if (fs.existsSync(configPath)) {
+  if (existsSync(configPath)) {
     try {
-      return JSON.parse(fs.readFileSync(configPath, 'utf8'))
+      return JSON.parse(readFileSync(configPath, 'utf8'))
     } catch (error) {
       console.warn('Error reading project config file, creating a new one')
     }
   }
 
   // Default project config
-  const defaultConfig = {
+  const defaultConfig: ProjectConfig = {
     // The specific environment variable to use for the connection string
     connectionVariable: 'DATABASE_URL',
     // Optional: individual connection parameters if not using a connection string
@@ -110,13 +137,13 @@ function getProjectConfig() {
     },
     // Project-specific settings
     settings: {
-      projectName: path.basename(process.cwd()),
+      projectName: basename(process.cwd()),
       saveQueries: true,
     },
   }
 
   // Save default config
-  fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2))
+  writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2))
   console.log(`Created default Sqratch config at ${configPath}`)
   console.log('You can customize this file to configure which environment variables to use')
 
@@ -133,7 +160,7 @@ async function main() {
   const envVars = loadEnvVars()
 
   // Try to find a database connection string using the configured variable
-  let connectionString = null
+  let connectionString: string | null = null
   const configuredVar = projectConfig.connectionVariable
 
   if (envVars[configuredVar]) {
@@ -165,7 +192,7 @@ async function main() {
     console.log('Storing connection information for Sqratch')
 
     // Store the connection info in the project directory
-    const connectionInfo = {
+    const connectionInfo: ConnectionInfo = {
       name: projectConfig.settings.projectName,
       connectionString,
       timestamp: Date.now(),
@@ -173,8 +200,8 @@ async function main() {
     }
 
     // Save to the project connections directory
-    fs.writeFileSync(
-      path.join(projectSqratchDir, 'connections', 'current.json'),
+    writeFileSync(
+      join(projectSqratchDir, 'connections', 'current.json'),
       JSON.stringify(connectionInfo, null, 2),
     )
   }
@@ -183,27 +210,27 @@ async function main() {
   console.log('Launching Sqratch...')
 
   // Determine the path to the Sqratch executable based on platform
-  let sqratchPath
+  let sqratchPath: string
 
   if (process.platform === 'darwin') {
     // macOS
-    sqratchPath = path.resolve(
-      __dirname,
+    sqratchPath = resolve(
+      import.meta.dir,
       '../',
       'src-tauri/target/release/bundle/macos/Sqratch.app/Contents/MacOS/Sqratch',
     )
   } else if (process.platform === 'win32') {
     // Windows
-    sqratchPath = path.resolve(__dirname, '../', 'src-tauri/target/release/Sqratch.exe')
+    sqratchPath = resolve(import.meta.dir, '../', 'src-tauri/target/release/Sqratch.exe')
   } else {
     // Linux
-    sqratchPath = path.resolve(__dirname, '../', 'src-tauri/target/release/sqratch')
+    sqratchPath = resolve(import.meta.dir, '../', 'src-tauri/target/release/sqratch')
   }
 
   // Pass the project path as an argument to the app
   const args = [`--project-path=${process.cwd()}`]
 
-  if (fs.existsSync(sqratchPath)) {
+  if (existsSync(sqratchPath)) {
     // Launch the native app
     const child = spawn(sqratchPath, args, {
       detached: true,
