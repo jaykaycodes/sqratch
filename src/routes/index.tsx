@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import type React from 'react'
+import { useEffect, useState } from 'react'
 
 import { createFileRoute } from '@tanstack/react-router'
+import { basename } from '@tauri-apps/api/path'
+import { getMatches } from '@tauri-apps/plugin-cli'
+import { readTextFile } from '@tauri-apps/plugin-fs'
 import { useAtom } from 'jotai'
 import * as Icons from 'lucide-react'
 import { nanoid } from 'nanoid'
@@ -15,17 +19,90 @@ export const Route = createFileRoute('/')({
   component: HomePage,
 })
 
+// Define types for connection info
+interface ConnectionInfo {
+  name: string
+  connectionString: string
+  timestamp: number
+  path: string
+}
+
 function HomePage() {
   const [connections, setConnections] = useAtom(connectionsAtom)
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [connectionString, setConnectionString] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
-  const handleAddConnection = (connString = connectionString) => {
+  // Check for project connection on mount
+  useEffect(() => {
+    const loadProjectConnection = async () => {
+      try {
+        setIsLoading(true)
+
+        // Get the project path from CLI arguments
+        const matches = await getMatches()
+        const projectPath = matches.args['project-path']?.value as string
+
+        if (!projectPath) {
+          console.log('No project path provided')
+          setIsLoading(false)
+          return
+        }
+
+        // Try to load the current connection from the project
+        try {
+          const connectionPath = `${projectPath}/.sqratch/connections/current.json`
+          const connectionData = await readTextFile(connectionPath)
+
+          const connectionInfo = JSON.parse(connectionData) as ConnectionInfo
+
+          // Only use connections that are less than 1 day old
+          const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+          if (connectionInfo.timestamp && connectionInfo.timestamp > oneDayAgo) {
+            // Get the project name
+            let projectName = connectionInfo.name
+
+            if (!projectName) {
+              try {
+                // Try to get the project name from the config
+                const configPath = `${projectPath}/.sqratch/config.json`
+                const configData = await readTextFile(configPath)
+
+                const config = JSON.parse(configData)
+                projectName = config.settings.projectName
+
+                if (!projectName) {
+                  // Fall back to directory name
+                  projectName = await basename(projectPath)
+                }
+              } catch (error) {
+                // Couldn't read project config, use default name
+                projectName = await basename(projectPath)
+              }
+            }
+
+            handleAddConnection(connectionInfo.connectionString, projectName)
+            toast.success(`Connected to ${projectName}`)
+          }
+        } catch (error) {
+          console.error('Error loading project connection:', error)
+        }
+      } catch (error) {
+        console.error('Error checking for project connection:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadProjectConnection()
+  }, [])
+
+  const handleAddConnection = (connString = connectionString, customName = '') => {
     try {
       const parsed = parseConnectionString(connString)
       const newConnection: DbConnection = {
         id: nanoid(),
-        name: `Database at ${parsed.host}`,
+        name: customName || `Database at ${parsed.host}`,
         connectionString: connString,
         createdAt: Date.now(),
         ...parsed,
@@ -47,6 +124,18 @@ function HomePage() {
       setIsAddingNew(false)
       setConnectionString('')
     }
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-8 flex items-center justify-center h-[80vh]">
+        <div className="text-center space-y-4">
+          <Icons.Loader className="w-12 h-12 mx-auto animate-spin text-primary" />
+          <p>Loading project connection...</p>
+        </div>
+      </div>
+    )
   }
 
   // Show simplified view when no connections exist

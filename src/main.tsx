@@ -14,11 +14,16 @@ import * as jsurl from 'jsurl2'
 import ReactDOM from 'react-dom/client'
 
 import { DefaultNotFound, DefaultPending } from './components/default-screens'
+import { getQueryClient } from './lib/query-client'
 import type { RootRouteContext } from './routes/__root'
 import { routeTree } from './routeTree.gen'
 
+const store = getDefaultStore()
+const queryClient = getQueryClient()
+
 const defaultContext: RootRouteContext = {
-  store: getDefaultStore(),
+  store,
+  queryClient,
 }
 
 const router = createRouter({

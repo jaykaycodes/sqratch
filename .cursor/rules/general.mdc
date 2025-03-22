@@ -3,60 +3,12 @@ description: context for all tasks
 globs: 
 alwaysApply: true
 ---
-# Sqratch - Modern SQL Client
-
-Sqratch is a high-performance SQL client and database management tool built with Tauri, React, and TypeScript. It aims to modernize database workflows with AI-powered features, intuitive filtering, and seamless collaboration.
-
-## Mission
-Create a categorically different, must-have tool that boosts productivity for TypeScript web devs by:
-- Simplifying Postgres data exploration and editing with a sleek, intuitive UI.
-- Using AI to write and optimize queries from natural language, tailored to Drizzle/Prisma/Supabase patterns.
-- Enabling quick report generation and team sharing, all synced with their existing dev workflow.
-
-
-## Core Architecture
-
-- **Frontend**: React + TypeScript with Shadcn UI components
-- **Backend**: Tauri (Rust) for native performance
-- **Data Management**: Tanstack Table for virtualized data handling
-- **Routing**: Tanstack Router for type-safe routing
-- **AI Integration**: Built-in AI capabilities for query generation and optimization
-
-## Key Features
-
-1. **Performance-First Design**
-- Native performance via Tauri
-- Virtualized table rendering for large datasets
-- Efficient connection management
-
-2. **Modern UI/UX**
-- Intuitive filtering and search
-- Relational data navigation
-- Command palette (⌘K) for quick actions
-
-3. **Smart Features**
-- AI-powered query generation
-- SQL autocompletion
-- Schema-aware suggestions
-- Query history and sharing
-
-4. **Developer Experience**
-- Saved queries and snippets
-- Query variables support
-- Notebook-style query documentation
-- Team collaboration features
-
-## Technical Requirements
-
-- Type-safe database connections
-- Efficient state management
-- Modular architecture for extensibility
-- Cross-platform compatibility (macOS, Windows, Linux)
-
-## Development Priorities
-
-1. Core database connectivity and query execution
-2. High-performance table visualization
-3. Smart filtering and search capabilities
-4. AI integration for query assistance
-5. Collaboration features
+- DO use comments to explain non-obvious things
+- DONT use comments to explain something that is trivially understood by looking at the code
+    - e.g. THIS IS UNNECESARRY: `// Gets a list of admin users ... function getAdminUsers(...) {...}`
+- DO use NOTE, WARN, TODO, and FIXME in comments to highlight extra important comments (e.g. `// NOTE: this is a very important comment`)
+- DO use minimal (but readable) syntax. Some examples:
+    - omit curly braces for 1-line blocks in JS (`if (cond) return val`)
+    - prefer anonymouse functions ()
+- DO ask questions if you're not sure!
+- DO use Bun for js package management and as our js runtime for scripting

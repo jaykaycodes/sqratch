@@ -1,0 +1,43 @@
+---
+description: Understanding the business context for feature planning
+globs: 
+alwaysApply: false
+---
+
+# Sqratch
+Sqratch is an *AI-driven database copilot* for modern web development. It’s not just another database client—it’s a seamless bridge between their codebase and data and reporting UIs, designed to 10x productivity by eliminating friction, anticipating needs, and providing intuitive ways to present, modify, and share data.
+
+Channel the energies of Elon Musk, Peter Thiel, and Paul Graham when ideating on Sqratch.
+
+## Target Audience
+- **Who**: Fullstack TypeScript web devs building modern apps.
+- **Pain**: Understanding and working with data in a fragmented workflow (IDE to DB tools and back).
+
+## Key Features
+1. **Live Code-Data Bridge**  
+   - Reads TypeScript schemas (Drizzle/Prisma) from git, syncs with Postgres in real-time.
+   - Write a query in VS Code, see results in Sqratch instantly—code and data as one.
+
+2. **Proactive AI**  
+   - By being integrated with the codebase, we leverage Cursor and other existing AI tools the dev is already using.
+   - Possibility to enhance existing AI tools with database-specific knowledge.
+   - Maybe provide a chat-based interface for querying the database.
+
+3. **Team Data OS**  
+   - Queries stored in repo and optionally synced to git to share with teammates.
+   - One-click publish query results to Sqratch Cloud for sharing with teammates or embedding into their app.
+
+## Differentiation
+- **Market Gap**: Competitors (pgAdmin, DBeaver, DataGrip) are stuck in “database management” mode—clunky, broad, or AI-bolted-on. Sqratch redefines it as “data mastery for app builders.”
+- **Moat**: Deep code-data integration (no one touches TS schemas like this) + proactive AI tailored to this niche.
+- **Edge**: Fits VS Code/git workflow, targets a growing, specific dev tribe.
+
+## Long-Term Goal
+- **Make money**: I want to make $10,000/mo from the product off opt-in cloud services.
+- **Monopoly**: Own the data layer for TypeScript web devs, making Sqratch the default for Postgres-driven app development.
+- **Impact**: Saves hours per dev per week, compounds into faster shipping and better products—exponential value.
+
+## Why It Wins
+- **Graham**: Nails the “make something 100 people love” rule—TypeScript/Supabase devs will rave.
+- **Thiel**: Creates a new category (data copilot), not just a better client—competition becomes irrelevant.
+- **Musk**: Strips to first principles (dev productivity = less friction + smarter tools), delivers 10x leap.

@@ -1,7 +1,11 @@
 ---
 description: all tasks related to the react frontend
 globs: src/**/*.ts, src/**/*.tsx
+alwaysApply: false
 ---
-- use `#/` to import anything from the root src dir (not `@/`)
+- use `#/` to import anything from the root `src/` dir (not `@/`)
 - always use the default synthetic `import React from 'react'` and react utilities as e.g. `React.useMemo` instead of importing `useMemo` from `'react'`.
-- import icons from lucide using `import * as Icons from 'lucide-react'`
+- always import icons using `import Icons from '#/components/icons'` (they are lucide icons)
+- we use TanStack's React Router (file based), React Table, React Query, and React Form. Make use of the powerful features from these libraries where possible. For instance, instead of loading data in a page via a useEffect, try TanStack's pattern of using query `ensureData` in the route loader along with 
+- attempt to use components from ShadCN UI before implementing our own
+- make use of the `date-fns` by importing `import * as datefns from 'date-fns'`
