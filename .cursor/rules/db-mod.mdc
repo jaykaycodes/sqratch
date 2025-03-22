@@ -1,0 +1,69 @@
+---
+description: 
+globs: src-tauri/src/db/**/*
+alwaysApply: false
+---
+
+# Database Module Architecture
+
+## Overview
+The database module in Sqratch uses a modular, trait-based architecture to support multiple database types (PostgreSQL, MySQL, SQLite) through a unified interface. The system is designed around clear separation of concerns with distinct modules for different functionality.
+
+## Module Structure
+- `db/clients/`: Database client implementations specific to each database type
+  - `common.rs`: Defines shared traits and interfaces (`DatabaseClient`, `Transaction`)
+  - `postgres.rs`: PostgreSQL-specific implementation
+  - (other database implementations)
+- `db/types.rs`: Core data structures used throughout the database module
+- `db/errors.rs`: Error handling types and utilities
+- `db/manager.rs`: Connection management and pooling
+- `db/utils/`: Helper functions and utilities
+
+## Key Architectural Decisions
+
+1. **Trait-based Polymorphism**: The `DatabaseClient` trait defines a common interface that all database implementations must provide, enabling database-agnostic code.
+
+2. **Separation of Connection Info and Client**: `ConnectionInfo` contains configuration, while client implementations handle the actual database interactions.
+
+3. **Pooled Connections**: Database connections use connection pools for better performance and resource management.
+
+4. **Async Design**: All database operations are async, using Tokio for concurrency.
+
+## Type System
+
+The `types.rs` module defines the shared data structures:
+
+- `ConnectionInfo`: Configuration for database connections
+- `DatabaseType`: Enum of supported database types
+- `QueryResult`: Standardized result format for query operations
+- `Row`: Database row representation
+- `SchemaInfo`, `TableInfo`, `ViewInfo`: Metadata structures
+
+## Common Gotchas
+
+1. **Multiple ConnectionInfo Definitions**: The biggest source of errors is having multiple `ConnectionInfo` structs. Always use the one from `db/types.rs`.
+
+2. **Private vs Trait Methods**: Helper methods within implementations (like `get_table_columns` in PostgreSQL) should be implemented in separate `impl` blocks outside the trait implementation.
+
+3. **Cross-module References**: Be careful with module dependencies to avoid circular references.
+
+4. **Field Mismatches**: The `ConnectionInfo` struct from `types.rs` uses `db_type` while code may incorrectly reference `connection_type`.
+
+## Working with Transactions
+
+Transactions are represented by the `Transaction` trait and implemented specifically for each database. The pattern to use:
+
+```rust
+let tx = client.begin_transaction().await?;
+// ... operations
+tx.commit().await?; // or tx.rollback().await?
+```
+
+## Query Execution Path
+
+1. User code calls into `DatabaseClient.execute_query()`
+2. Specific implementation handles translation to database-specific queries
+3. Results are converted to standardized `QueryResult` structure
+4. Error handling via `DbResult` type alias
+
+Remember that helper methods specific to an implementation should be in their own impl block, not in the trait implementation.
