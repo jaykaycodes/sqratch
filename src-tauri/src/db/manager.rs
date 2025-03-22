@@ -8,6 +8,7 @@ use url::Url;
 use crate::db::clients::common::DatabaseClient;
 use crate::db::errors::{DbError, DbResult};
 use crate::db::types::{ConnectionInfo, DatabaseType, QueryResult};
+use crate::project;
 
 /// Manages multiple database connections
 pub struct DatabaseManager {
@@ -194,6 +195,14 @@ impl DatabaseManager {
 
     /// Loads connections from a project directory
     pub async fn load_from_project(&self, project_path: &str) -> DbResult<Vec<String>> {
+        // Try to get a connection from the project configuration
+        if let Some(connection) = project::parse_project_config(project_path).await? {
+            let id = connection.id.clone();
+            self.add_connection(connection).await?;
+            return Ok(vec![id]);
+        }
+
+        // If no connection from config, try to load from connections directory
         let connection_dir = Path::new(project_path).join(".sqratch").join("connections");
         if !connection_dir.exists() {
             return Ok(vec![]);
@@ -223,6 +232,11 @@ impl DatabaseManager {
         }
 
         Ok(loaded_ids)
+    }
+
+    /// Gets project configuration
+    pub fn get_project_config(&self, project_path: &str) -> DbResult<project::ProjectConfig> {
+        project::ProjectManager::parse_config(project_path)
     }
 
     /// Parses a connection string to determine the database type and info
@@ -295,7 +309,15 @@ pub async fn parse_connection_config(
     project_path: Option<&str>,
     env_var: Option<&str>,
 ) -> DbResult<Option<ConnectionInfo>> {
-    // First check env var if specified
+    // If project path is provided, use the project config
+    if let Some(path) = project_path {
+        // Try to get connection from project configuration
+        if let Some(connection) = project::parse_project_config(path).await? {
+            return Ok(Some(connection));
+        }
+    }
+
+    // If env_var is specified, try that
     if let Some(env_name) = env_var {
         if let Ok(conn_str) = std::env::var(env_name) {
             println!("Found connection string in environment variable {}", env_name);
@@ -315,7 +337,7 @@ pub async fn parse_connection_config(
         }
     }
 
-    // Then check project path if provided
+    // If project path is provided, try traditional method as fallback
     if let Some(path) = project_path {
         // Look for .sqratch/connections/current.json in the project path
         let connection_file = Path::new(path).join(".sqratch").join("connections").join("current.json");

@@ -8,10 +8,13 @@ mod db;
 mod commands;
 mod startup;
 mod cli;
+pub mod project;
 
 // Import and re-export key types for the frontend
 pub use db::types::{ConnectionInfo, DatabaseType};
 pub use db::manager::{DatabaseManager, create_db_manager, parse_connection_config};
+pub use project::{ProjectConfig, ProjectSettings};
+pub use cli::Args;
 
 // State for database manager
 pub struct AppState {
@@ -53,6 +56,7 @@ pub fn run() {
             commands::execute_queries,
             commands::test_connection,
             commands::load_connections_from_project,
+            commands::get_project_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

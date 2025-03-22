@@ -3,5 +3,29 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
-  "permissions": ["core:default", "opener:default", "cli:default"]
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "cli:default",
+    "core:app:allow-version",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:event:allow-emit",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        {
+          "path": "*/*.(db|db3|s3db|sl3|sqlite|sqlite3)"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        {
+          "path": "$APPDATA/*.json"
+        }
+      ]
+    }
+  ]
 }

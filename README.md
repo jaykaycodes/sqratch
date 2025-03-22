@@ -45,32 +45,36 @@ Sqratch will automatically:
 
 ### Project Configuration
 
-Sqratch uses a project-local configuration file at `.sqratch/config.json` that can be committed to your repository and shared with your team. This ensures everyone on the team uses the same connection variables.
+Sqratch projects use a `.sqratch` directory in the project root to store configuration and connection information. The main configuration file is `.sqratch/config.jsonc`, which follows this structure:
 
-The first time you run Sqratch in a project, it will create a default configuration:
-
-```json
+```jsonc
 {
+  // Environment variable name holding the connection string
+  // Default: "DATABASE_URL"
   "connectionVariable": "DATABASE_URL",
+
+  // Optional: Individual connection parameters as environment variables
+  // Only used if connectionVariable doesn't exist or is empty
   "connectionParams": {
     "host": "DB_HOST",
     "port": "DB_PORT",
     "database": "DB_NAME",
     "user": "DB_USER",
-    "password": "DB_PASSWORD"
+    "password": "DB_PASSWORD",
   },
+
+  // Project-specific settings
   "settings": {
-    "projectName": "your-project-name",
-    "saveQueries": true
-  }
+    // Optional: Project name for display
+    "projectName": "My Project",
+
+    // Whether to save query history (default: true)
+    "saveQueries": true,
+  },
 }
 ```
 
-You can customize this file to:
-
-- Specify which environment variable contains your connection string
-- Define which variables to use for individual connection parameters
-- Set project-specific settings
+Sqratch will look for a `.env` file in the project root to load these environment variables. If not found, it will use the system environment variables.
 
 ### Project Structure
 
