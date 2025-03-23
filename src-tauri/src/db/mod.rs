@@ -1,11 +1,8 @@
-// Database connection module
-pub mod clients;
+// Define modules in the database module
 pub mod errors;
-pub mod manager;
 pub mod types;
+pub mod manager;
+pub mod client;
+pub mod postgres;
 pub mod utils;
 
-// Re-export common types
-pub use types::{
-    ConnectionInfo, QueryResult
-};

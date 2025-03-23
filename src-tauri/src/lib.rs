@@ -12,13 +12,13 @@ pub mod project;
 
 // Import and re-export key types for the frontend
 pub use db::types::{ConnectionInfo, DatabaseType};
-pub use db::manager::{DatabaseManager, create_db_manager, parse_connection_config};
-pub use project::{ProjectConfig, ProjectSettings};
+pub use db::manager::{ConnectionManager, create_db_manager};
+pub use project::ProjectConfig;
 pub use cli::Args;
 
 // State for database manager
 pub struct AppState {
-    db_manager: Arc<DatabaseManager>,
+    db_manager: Arc<ConnectionManager>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -46,7 +46,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::greet,
+            // DB commands
+            commands::test_connection_string,
             commands::list_connections,
             commands::add_connection,
             commands::connect_to_database,
@@ -56,6 +57,12 @@ pub fn run() {
             commands::execute_queries,
             commands::test_connection,
             commands::load_connections_from_project,
+            commands::get_schema_info,
+            commands::get_tables,
+            commands::get_paginated_rows,
+
+            // Misc commands
+            commands::greet,
             commands::get_project_config,
         ])
         .run(tauri::generate_context!())

@@ -1,2 +1,1 @@
-pub mod serialization;
-pub mod parsing;
+pub mod strings;

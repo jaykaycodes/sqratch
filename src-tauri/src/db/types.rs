@@ -7,16 +7,12 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum DatabaseType {
     Postgres,
-    MySQL,
-    SQLite,
 }
 
 impl fmt::Display for DatabaseType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DatabaseType::Postgres => write!(f, "PostgreSQL"),
-            DatabaseType::MySQL => write!(f, "MySQL"),
-            DatabaseType::SQLite => write!(f, "SQLite"),
         }
     }
 }
@@ -82,8 +78,6 @@ impl ConnectionInfo {
     pub fn default_port(&self) -> u16 {
         match self.db_type {
             DatabaseType::Postgres => 5432,
-            DatabaseType::MySQL => 3306,
-            DatabaseType::SQLite => 0,
         }
     }
 
@@ -94,12 +88,7 @@ impl ConnectionInfo {
         }
 
         match self.db_type {
-            DatabaseType::SQLite => {
-                let path = self.host.as_ref().or(self.database.as_ref())
-                    .ok_or_else(|| "SQLite database path is required".to_string())?;
-                Ok(format!("sqlite:{}", path))
-            },
-            DatabaseType::Postgres | DatabaseType::MySQL => {
+            DatabaseType::Postgres => {
                 let host = self.host.as_ref().ok_or_else(|| "Host is required".to_string())?;
                 let port = self.port.unwrap_or_else(|| self.default_port());
                 let database = self.database.as_ref().ok_or_else(|| "Database name is required".to_string())?;
@@ -113,8 +102,6 @@ impl ConnectionInfo {
 
                 let prefix = match self.db_type {
                     DatabaseType::Postgres => "postgres",
-                    DatabaseType::MySQL => "mysql",
-                    _ => unreachable!(),
                 };
 
                 Ok(format!("{}://{}:{}@{}:{}/{}", prefix, username, password, host, port, database))

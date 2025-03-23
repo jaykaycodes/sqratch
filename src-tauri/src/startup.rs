@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use tauri_plugin_fs::FsExt;
-use crate::DatabaseManager;
+use crate::ConnectionManager;
 use crate::db::manager::parse_connection_config;
 
-pub async fn handle_project_path_async(path: String, db_manager: Arc<DatabaseManager>) {
+pub async fn handle_project_path_async(path: String, db_manager: Arc<ConnectionManager>) {
     println!("Attempting to find database connections for project at: {}", path);
 
     // Try to load connection config from project path

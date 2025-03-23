@@ -1,4 +1,8 @@
+use url::Url;
+use std::collections::HashMap;
+
 use crate::db::errors::{DbError, DbResult};
+use crate::db::types::{ConnectionInfo, DatabaseType};
 
 /// Split a SQL script into individual statements
 pub fn split_sql_statements(sql: &str) -> DbResult<Vec<String>> {
@@ -79,4 +83,49 @@ pub fn split_sql_statements(sql: &str) -> DbResult<Vec<String>> {
     }
 
     Ok(statements)
+}
+
+/// Parse a connection string to extract database type and connection info
+pub fn parse_connection_string(connection_string: &str) -> DbResult<ConnectionInfo> {
+    let url = Url::parse(connection_string)?;
+
+    let scheme = url.scheme();
+    let db_type = match scheme {
+        "postgres" | "postgresql" => DatabaseType::Postgres,
+        _ => return Err(DbError::Config(format!("Unsupported database type: {}", scheme))),
+    };
+
+    let host = url.host_str().unwrap_or("localhost").to_string();
+    let port = url.port().unwrap_or(match db_type {
+        DatabaseType::Postgres => 5432,
+    });
+
+    let database = url.path().trim_start_matches('/').to_string();
+
+    let username = url.username().to_string();
+    let password = url.password().unwrap_or("").to_string();
+
+    // Create a default name based on host and database
+    let name = format!("{} on {}", database, host);
+
+    // Create a new connection info
+    let mut connection = ConnectionInfo::new(name, db_type);
+    connection.connection_string = Some(connection_string.to_string());
+    connection.host = Some(host);
+    connection.port = Some(port);
+    connection.database = Some(database);
+    connection.username = Some(username);
+    connection.password = Some(password);
+
+    // Parse query parameters as options
+    let mut options = HashMap::new();
+    for (key, value) in url.query_pairs() {
+        options.insert(key.to_string(), value.to_string());
+    }
+
+    if !options.is_empty() {
+        connection.options = Some(options);
+    }
+
+    Ok(connection)
 }

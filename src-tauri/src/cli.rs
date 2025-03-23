@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::path::Path;
 use tauri::{App, AppHandle, Manager};
 use clap::Parser;
-use crate::DatabaseManager;
+use crate::ConnectionManager;
 use crate::startup;
 
 /// CLI arguments for Sqratch
@@ -14,7 +14,7 @@ pub struct Args {
 }
 
 /// Process CLI arguments from the initial launch
-pub fn process_cli_args(app: &App, db_manager: Arc<DatabaseManager>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn process_cli_args(app: &App, db_manager: Arc<ConnectionManager>) -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_cli_args();
 
     // Process project path if provided

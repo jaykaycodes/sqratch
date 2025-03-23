@@ -1,24 +1,23 @@
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use url::Url;
 
-use crate::db::clients::common::DatabaseClient;
+use crate::db::client::{create_client, DatabaseClient};
+use crate::db::types::DatabaseType;
 use crate::db::errors::{DbError, DbResult};
-use crate::db::types::{ConnectionInfo, DatabaseType, QueryResult};
+use crate::db::types::{ConnectionInfo, QueryResult};
+use crate::db::utils::strings;
 use crate::project;
 
-/// Manages multiple database connections
-pub struct DatabaseManager {
-    /// Stored connection configurations
+pub struct ConnectionManager {
     connections: RwLock<HashMap<String, ConnectionInfo>>,
-    /// Active database clients
-    clients: RwLock<HashMap<String, Arc<dyn DatabaseClient>>>,
+    clients: RwLock<HashMap<String, Arc<Box<dyn DatabaseClient>>>>,
 }
 
-impl DatabaseManager {
+impl ConnectionManager {
     /// Creates a new database manager
     pub fn new() -> Self {
         Self {
@@ -54,16 +53,8 @@ impl DatabaseManager {
 
         // If the connection is active, disconnect it first
         let mut clients = self.clients.write().await;
-        if let Some(client) = clients.remove(id) {
-            // Drop the lock to avoid deadlock
-            drop(connections);
-            drop(clients);
-
-            // Disconnect the client
-            client.disconnect().await?;
-
-            // Reacquire the lock and update the connection
-            connections = self.connections.write().await;
+        if clients.remove(id).is_some() {
+            // Connection will be closed when Arc is dropped
         }
 
         // Update the connection
@@ -73,15 +64,9 @@ impl DatabaseManager {
 
     /// Removes a connection
     pub async fn remove_connection(&self, id: &str) -> DbResult<()> {
-        // First disconnect if connected
+        // Remove the client (which will disconnect)
         let mut clients = self.clients.write().await;
-        if let Some(client) = clients.remove(id) {
-            // Drop the lock to avoid deadlock
-            drop(clients);
-
-            // Disconnect the client
-            client.disconnect().await?;
-        }
+        clients.remove(id);
 
         // Now remove the connection
         let mut connections = self.connections.write().await;
@@ -93,45 +78,35 @@ impl DatabaseManager {
     }
 
     /// Connects to a database by ID
-    pub async fn connect(&self, id: &str) -> DbResult<Arc<dyn DatabaseClient>> {
+    pub async fn connect(&self, id: &str) -> DbResult<()> {
         // Check if already connected
         {
             let clients = self.clients.read().await;
-            if let Some(client) = clients.get(id) {
-                return Ok(client.clone());
+            if clients.contains_key(id) {
+                return Ok(());
             }
         }
 
         // Get connection info
         let connection = self.get_connection(id).await?;
 
-        // Create a client based on the database type
-        let client = self.create_client(connection).await?;
-
-        // Attempt to connect
-        client.connect().await?;
+        // Create a client
+        let client = create_client(connection).await?;
 
         // Store the client
         let mut clients = self.clients.write().await;
-        clients.insert(id.to_string(), client.clone());
+        clients.insert(id.to_string(), Arc::new(client));
 
-        Ok(client)
+        Ok(())
     }
 
     /// Disconnects from a database
     pub async fn disconnect(&self, id: &str) -> DbResult<()> {
         let mut clients = self.clients.write().await;
-        if let Some(client) = clients.remove(id) {
-            // Drop the lock to avoid deadlock
-            drop(clients);
-
-            // Disconnect the client
-            client.disconnect().await?;
-
-            Ok(())
-        } else {
-            Err(DbError::NotFound(format!("Not connected to database: {}", id)))
+        if clients.remove(id).is_none() {
+            return Err(DbError::NotFound(format!("Not connected to database: {}", id)));
         }
+        Ok(())
     }
 
     /// Checks if connected to a database
@@ -141,7 +116,7 @@ impl DatabaseManager {
     }
 
     /// Gets an active client by ID
-    pub async fn get_client(&self, id: &str) -> DbResult<Arc<dyn DatabaseClient>> {
+    async fn get_client(&self, id: &str) -> DbResult<Arc<Box<dyn DatabaseClient>>> {
         let clients = self.clients.read().await;
         clients
             .get(id)
@@ -158,7 +133,14 @@ impl DatabaseManager {
     /// Executes multiple queries on a database
     pub async fn execute_queries(&self, id: &str, sql: &str) -> DbResult<Vec<QueryResult>> {
         let client = self.get_client(id).await?;
-        client.execute_queries(sql).await
+        let statements = strings::split_sql_statements(sql)?;
+
+        let mut results = Vec::with_capacity(statements.len());
+        for statement in statements {
+            results.push(client.execute_query(&statement).await?);
+        }
+
+        Ok(results)
     }
 
     /// Tests a connection by ID
@@ -166,10 +148,8 @@ impl DatabaseManager {
         // Get connection info
         let connection = self.get_connection(id).await?;
 
-        // Create a client based on the database type
-        let client = self.create_client(connection).await?;
-
-        // Test the connection
+        // Create a client and test connection
+        let client = create_client(connection).await?;
         client.test_connection().await
     }
 
@@ -177,20 +157,6 @@ impl DatabaseManager {
     pub async fn list_connections(&self) -> Vec<ConnectionInfo> {
         let connections = self.connections.read().await;
         connections.values().cloned().collect()
-    }
-
-    /// Creates a database client based on connection info
-    async fn create_client(&self, connection: ConnectionInfo) -> DbResult<Arc<dyn DatabaseClient>> {
-        // Import client implementations here to avoid circular dependencies
-        use crate::db::clients::postgres::PostgresClient;
-        use crate::db::clients::mysql::MySqlClient;
-        use crate::db::clients::sqlite::SqliteClient;
-
-        match connection.db_type {
-            DatabaseType::Postgres => Ok(Arc::new(PostgresClient::new(connection))),
-            DatabaseType::MySQL => Ok(Arc::new(MySqlClient::new(connection))),
-            DatabaseType::SQLite => Ok(Arc::new(SqliteClient::new(connection))),
-        }
     }
 
     /// Loads connections from a project directory
@@ -211,20 +177,18 @@ impl DatabaseManager {
         let mut loaded_ids = Vec::new();
 
         // Read all JSON files in the connections directory
-        if let Ok(entries) = fs::read_dir(&connection_dir) {
+        if let Ok(entries) = std::fs::read_dir(&connection_dir) {
             for entry in entries.filter_map(Result::ok) {
                 let path = entry.path();
                 if path.is_file() && path.extension().map_or(false, |ext| ext == "json") {
-                    if let Ok(content) = fs::read_to_string(&path) {
-                        match serde_json::from_str::<ConnectionInfo>(&content) {
-                            Ok(connection) => {
-                                let id = connection.id.clone();
-                                self.add_connection(connection).await?;
-                                loaded_ids.push(id);
-                            },
-                            Err(e) => {
-                                eprintln!("Failed to parse connection file {}: {}", path.display(), e);
-                            }
+                    match connection::load_connection_from_file(&path) {
+                        Ok(connection) => {
+                            let id = connection.id.clone();
+                            self.add_connection(connection).await?;
+                            loaded_ids.push(id);
+                        },
+                        Err(e) => {
+                            eprintln!("Failed to load connection file {}: {}", path.display(), e);
                         }
                     }
                 }
@@ -239,6 +203,36 @@ impl DatabaseManager {
         project::ProjectManager::parse_config(project_path)
     }
 
+    /// Establishes a connection with timeout and testing
+    pub async fn establish_connection(conn_string: &str, db_type: &DatabaseType) -> DbResult<()> {
+        match db_type {
+            DatabaseType::Postgres => {
+                use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+                use std::str::FromStr;
+
+                let options = PgConnectOptions::from_str(conn_string)
+                    .map_err(|e| DbError::Connection(e.to_string()))?;
+
+                let pool = PgPoolOptions::new()
+                    .max_connections(1)
+                    .acquire_timeout(Duration::from_secs(5))
+                    .test_before_acquire(true)
+                    .connect_with(options)
+                    .await
+                    .map_err(|e| DbError::Connection(e.to_string()))?;
+
+                // Test the connection
+                sqlx::query("SELECT 1").execute(&pool).await
+                    .map_err(|e| DbError::Connection(e.to_string()))?;
+
+                // Close the pool
+                pool.close().await;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Parses a connection string to determine the database type and info
     pub fn parse_connection_string(connection_string: &str) -> DbResult<ConnectionInfo> {
         let url = Url::parse(connection_string)?;
@@ -246,33 +240,23 @@ impl DatabaseManager {
         let scheme = url.scheme();
         let db_type = match scheme {
             "postgres" | "postgresql" => DatabaseType::Postgres,
-            "mysql" | "mariadb" => DatabaseType::MySQL,
-            "sqlite" => DatabaseType::SQLite,
             _ => return Err(DbError::Config(format!("Unsupported database type: {}", scheme))),
         };
 
         let host = url.host_str().unwrap_or("localhost").to_string();
         let port = url.port().unwrap_or(match db_type {
             DatabaseType::Postgres => 5432,
-            DatabaseType::MySQL => 3306,
-            DatabaseType::SQLite => 0,
         });
 
         let database = match db_type {
-            DatabaseType::SQLite => url.path().to_string(),
             _ => url.path().trim_start_matches('/').to_string(),
         };
 
         let username = url.username().to_string();
-        let password = if url.password().is_some() {
-            url.password().unwrap().to_string()
-        } else {
-            "".to_string()
-        };
+        let password = url.password().unwrap_or("").to_string();
 
         // Create a default name based on host and database
         let name = match db_type {
-            DatabaseType::SQLite => format!("SQLite: {}", database),
             _ => format!("{} on {}", database, host),
         };
 
@@ -300,8 +284,8 @@ impl DatabaseManager {
 }
 
 // Helper function to create a database manager
-pub fn create_db_manager() -> DatabaseManager {
-    DatabaseManager::new()
+pub fn create_db_manager() -> ConnectionManager {
+    ConnectionManager::new()
 }
 
 /// Helper function to parse connection information from project path or env var
@@ -321,18 +305,16 @@ pub async fn parse_connection_config(
     if let Some(env_name) = env_var {
         if let Ok(conn_str) = std::env::var(env_name) {
             println!("Found connection string in environment variable {}", env_name);
-            let connection = DatabaseManager::parse_connection_string(&conn_str)?;
+            let connection = connection::parse_connection_string(&conn_str)?;
             return Ok(Some(connection));
         }
     }
 
     // Check for SQRATCH_PROJECT_PATH env var
     if let Ok(conn_str) = std::env::var("SQRATCH_PROJECT_PATH") {
-        if conn_str.starts_with("postgres://") ||
-           conn_str.starts_with("mysql://") ||
-           conn_str.starts_with("sqlite:") {
+        if conn_str.starts_with("postgres://") {
             println!("Found connection string in SQRATCH_PROJECT_PATH");
-            let connection = DatabaseManager::parse_connection_string(&conn_str)?;
+            let connection = connection::parse_connection_string(&conn_str)?;
             return Ok(Some(connection));
         }
     }
@@ -344,21 +326,14 @@ pub async fn parse_connection_config(
         if connection_file.exists() {
             println!("Found connection file at: {}", connection_file.display());
 
-            // Read and parse the JSON file
-            match fs::read_to_string(&connection_file) {
-                Ok(json_str) => {
-                    match serde_json::from_str::<ConnectionInfo>(&json_str) {
-                        Ok(connection) => {
-                            println!("Using connection for project: {}", connection.name);
-                            return Ok(Some(connection));
-                        },
-                        Err(e) => {
-                            return Err(DbError::Config(format!("Failed to parse connection file: {}", e)));
-                        }
-                    }
+            // Read and parse the connection file
+            match connection::load_connection_from_file(&connection_file) {
+                Ok(connection) => {
+                    println!("Using connection for project: {}", connection.name);
+                    return Ok(Some(connection));
                 },
                 Err(e) => {
-                    return Err(DbError::Config(format!("Failed to read connection file: {}", e)));
+                    return Err(e);
                 }
             }
         } else {

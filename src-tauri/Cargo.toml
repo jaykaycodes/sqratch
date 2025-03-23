@@ -30,11 +30,16 @@ tauri-plugin-cli = "2.2.0"
 clap = { version = "4.5.4", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-rustls", "postgres", "mysql", "sqlite", "json", "macros", "migrate", "uuid", "chrono", "time"] }
+sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-rustls", "postgres", "json", "macros", "migrate", "uuid", "chrono", "time"] }
 tokio = { version = "1.44.1", features = ["full"] }
 url = "2.5.4"
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
 async-trait = "0.1.88"
 chrono = { version = "0.4.40", features = ["serde"] }
 dotenv = "0.15.0"
+specta = "1.0.5"
+specta-typescript = "0.0.9"
+tauri-specta = "1.0.2"
+open = "5.3.2"
+time = "0.3.40"
 
