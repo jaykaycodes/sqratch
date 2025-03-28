@@ -1,8 +1,8 @@
-use url::Url;
 use std::collections::HashMap;
+use std::path::Path;
+use url::Url;
 
-use crate::db::errors::{DbError, DbResult};
-use crate::db::types::{ConnectionInfo, DatabaseType};
+use crate::db::*;
 
 /// Split a SQL script into individual statements
 pub fn split_sql_statements(sql: &str) -> DbResult<Vec<String>> {
@@ -73,26 +73,33 @@ pub fn split_sql_statements(sql: &str) -> DbResult<Vec<String>> {
 
     // Check for unclosed string or quoted identifier
     if in_string {
-        return Err(DbError::Parsing("Unclosed string literal in SQL statement".to_string()));
+        return Err(DbError::Parsing(
+            "Unclosed string literal in SQL statement".to_string(),
+        ));
     }
     if in_identifier {
-        return Err(DbError::Parsing("Unclosed quoted identifier in SQL statement".to_string()));
+        return Err(DbError::Parsing(
+            "Unclosed quoted identifier in SQL statement".to_string(),
+        ));
     }
     if in_block_comment {
-        return Err(DbError::Parsing("Unclosed block comment in SQL statement".to_string()));
+        return Err(DbError::Parsing(
+            "Unclosed block comment in SQL statement".to_string(),
+        ));
     }
 
     Ok(statements)
 }
 
 /// Parse a connection string to extract database type and connection info
-pub fn parse_connection_string(connection_string: &str) -> DbResult<ConnectionInfo> {
-    let url = Url::parse(connection_string)?;
+pub fn parse_connection_string(connection_string: &str) -> Result<ConnectionInfo, String> {
+    let url =
+        Url::parse(connection_string).map_err(|e| format!("Invalid connection URL: {}", e))?;
 
     let scheme = url.scheme();
     let db_type = match scheme {
         "postgres" | "postgresql" => DatabaseType::Postgres,
-        _ => return Err(DbError::Config(format!("Unsupported database type: {}", scheme))),
+        _ => return Err(format!("Unsupported database type: {}", scheme)),
     };
 
     let host = url.host_str().unwrap_or("localhost").to_string();
@@ -109,13 +116,13 @@ pub fn parse_connection_string(connection_string: &str) -> DbResult<ConnectionIn
     let name = format!("{} on {}", database, host);
 
     // Create a new connection info
-    let mut connection = ConnectionInfo::new(name, db_type);
-    connection.connection_string = Some(connection_string.to_string());
-    connection.host = Some(host);
-    connection.port = Some(port);
-    connection.database = Some(database);
-    connection.username = Some(username);
-    connection.password = Some(password);
+    let mut conn_info = ConnectionInfo::new(name, db_type);
+    conn_info.connection_string = Some(connection_string.to_string());
+    conn_info.host = Some(host);
+    conn_info.port = Some(port);
+    conn_info.database = Some(database);
+    conn_info.username = Some(username);
+    conn_info.password = Some(password);
 
     // Parse query parameters as options
     let mut options = HashMap::new();
@@ -124,8 +131,64 @@ pub fn parse_connection_string(connection_string: &str) -> DbResult<ConnectionIn
     }
 
     if !options.is_empty() {
-        connection.options = Some(options);
+        conn_info.options = Some(options);
     }
 
-    Ok(connection)
+    Ok(conn_info)
+}
+
+/// Parse the "project" arg into a connection string
+///
+/// This function handles two cases:
+/// 1. If the arg is a database URL, it returns it directly
+/// 2. If the arg is a directory path, it looks for a .env file and extracts the DATABASE_URL
+pub fn parse_project_arg(project_arg: &str, cwd: &str) -> Result<ConnectionInfo, String> {
+    // Check if it's a URL (has :// pattern)
+    if project_arg.contains("://") {
+        return parse_connection_string(project_arg);
+    }
+
+    // Otherwise treat as a path to a directory with .env file
+    let path = if Path::new(project_arg).is_absolute() {
+        Path::new(project_arg).to_path_buf()
+    } else {
+        Path::new(cwd).join(project_arg)
+    };
+
+    if path.is_dir() {
+        let env_path = path.join(".env");
+        if env_path.exists() {
+            // Read .env file content
+            let content = std::fs::read_to_string(&env_path)
+                .map_err(|e| format!("Failed to read .env file: {}", e))?;
+
+            // Parse the file content to find DATABASE_URL
+            for line in content.lines() {
+                let line = line.trim();
+                // Skip comments and empty lines
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+
+                // Look for DATABASE_URL=value pattern
+                if let Some((key, value)) = line.split_once('=') {
+                    if key.trim() == "DATABASE_URL" {
+                        // Remove quotes if present
+                        let url = value.trim().trim_matches('"').trim_matches('\'');
+
+                        return parse_connection_string(url);
+                    }
+                }
+            }
+
+            Err("DATABASE_URL not found in .env file".to_string())
+        } else {
+            Err(format!(
+                "No .env file found in directory: {}",
+                path.display()
+            ))
+        }
+    } else {
+        Err(format!("Invalid project path: {}", path.display()))
+    }
 }

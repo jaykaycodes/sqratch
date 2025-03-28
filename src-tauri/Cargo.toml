@@ -4,30 +4,22 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = ["Jake Correa <jake@sqratch.dev>"]
 edition = "2021"
+default-run = "sqratch"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "sqratch_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
-
-# Binary target for CLI functionality
-[[bin]]
-name = "sqratch"
-path = "src/bin/sqratch.rs"
 
 [build-dependencies]
-tauri-build = { version = "2.1.0", features = [] }
+tauri-build = { version = "2.1.0" }
 
 [dependencies]
-tauri = { version = "2.4.0", features = [] }
+# tauri = { git = "https://github.com/tauri-apps/tauri", rev = "5c2b3b8b65c797304ea8c2b13f4053f01db467c9" }
+tauri = { version = "2.4.0" }
 tauri-plugin-opener = "2.2.6"
 tauri-plugin-fs = "2.2.0"
 tauri-plugin-cli = "2.2.0"
-clap = { version = "4.5.4", features = ["derive"] }
+tauri-plugin-log = "2.3.1"
+taurpc = "0.4.1"
+thiserror = "2.0.12"
+clap = { version = "4.5.34", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-rustls", "postgres", "json", "macros", "migrate", "uuid", "chrono", "time"] }
@@ -37,9 +29,12 @@ uuid = { version = "1.16.0", features = ["v4", "serde"] }
 async-trait = "0.1.88"
 chrono = { version = "0.4.40", features = ["serde"] }
 dotenv = "0.15.0"
-specta = "1.0.5"
+specta = { version = "2.0.0-rc.22", features = ["serde"] }
 specta-typescript = "0.0.9"
-tauri-specta = "1.0.2"
 open = "5.3.2"
-time = "0.3.40"
+time = "0.3.41"
+log = "0.4.27"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
 

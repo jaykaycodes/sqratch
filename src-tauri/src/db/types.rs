@@ -42,12 +42,6 @@ pub struct ConnectionInfo {
     pub options: Option<HashMap<String, String>>,
     /// SSL configuration
     pub ssl_config: Option<SslConfig>,
-    /// Creation timestamp
-    pub created_at: u64,
-    /// Last accessed timestamp
-    pub last_used: Option<u64>,
-    /// Associated project ID (if any)
-    pub project_id: Option<String>,
 }
 
 impl ConnectionInfo {
@@ -65,12 +59,6 @@ impl ConnectionInfo {
             password: None,
             options: None,
             ssl_config: None,
-            created_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-            last_used: None,
-            project_id: None,
         }
     }
 
@@ -89,10 +77,19 @@ impl ConnectionInfo {
 
         match self.db_type {
             DatabaseType::Postgres => {
-                let host = self.host.as_ref().ok_or_else(|| "Host is required".to_string())?;
+                let host = self
+                    .host
+                    .as_ref()
+                    .ok_or_else(|| "Host is required".to_string())?;
                 let port = self.port.unwrap_or_else(|| self.default_port());
-                let database = self.database.as_ref().ok_or_else(|| "Database name is required".to_string())?;
-                let username = self.username.as_ref().ok_or_else(|| "Username is required".to_string())?;
+                let database = self
+                    .database
+                    .as_ref()
+                    .ok_or_else(|| "Database name is required".to_string())?;
+                let username = self
+                    .username
+                    .as_ref()
+                    .ok_or_else(|| "Username is required".to_string())?;
 
                 // Create a longer-lived password value
                 let password = match self.password.as_ref() {
@@ -104,7 +101,10 @@ impl ConnectionInfo {
                     DatabaseType::Postgres => "postgres",
                 };
 
-                Ok(format!("{}://{}:{}@{}:{}/{}", prefix, username, password, host, port, database))
+                Ok(format!(
+                    "{}://{}:{}@{}:{}/{}",
+                    prefix, username, password, host, port, database
+                ))
             }
         }
     }
@@ -251,4 +251,19 @@ pub struct FunctionInfo {
     pub return_type: Option<String>,
     /// Function definition
     pub definition: Option<String>,
+}
+
+/// Result of a paginated rows query
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaginatedRowsResult {
+    /// The rows returned from the query
+    pub rows: Vec<Row>,
+    /// The total number of rows in the table
+    pub total_rows: u64,
+    /// The current page index
+    pub page_index: u16,
+    /// The number of rows per page
+    pub page_size: u32,
+    /// The total number of pages
+    pub total_pages: u32,
 }

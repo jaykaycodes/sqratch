@@ -43,12 +43,10 @@
     },
     "cli": {
       "description": "Sqratch SQL Database Client",
-      "beforeHelp": "",
-      "afterHelp": "",
       "args": [
         {
           "name": "project",
-          "description": "Path to the project directory containing a .sqratch/ directory",
+          "description": "Path to the project with .env or a database URL",
           "index": 1,
           "takesValue": true
         }

@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": ["*"],
   "permissions": [
     "core:default",
     "opener:default",
@@ -15,7 +15,7 @@
       "identifier": "fs:allow-read-file",
       "allow": [
         {
-          "path": "*/*.(db|db3|s3db|sl3|sqlite|sqlite3)"
+          "path": "$HOME/**/*.(db|db3|s3db|sl3|sqlite|sqlite3)"
         }
       ]
     },
@@ -23,8 +23,21 @@
       "identifier": "fs:allow-read-text-file",
       "allow": [
         {
-          "path": "$APPDATA/*.json"
+          "path": "$HOME/**/*.json"
+        },
+        {
+          "path": "$APPDATA/**/*.env"
         }
+      ]
+    },
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "**/.sqratch", "recursive": true },
+        { "path": "**", "recursive": false },
+        { "path": "$HOME", "recursive": true },
+        { "path": "$USERPROFILE", "recursive": true },
+        { "path": "$APPDATA", "recursive": true }
       ]
     }
   ]
