@@ -23,11 +23,14 @@ async fn main() {
         )
         .merge(DbApiImpl::default().into_handler());
 
+    let logging = utils::logging::setup_logging_plugin();
+
     tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_cli::init())
+        .plugin(logging.build())
         .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
             open_window(app, cwd);
         }))

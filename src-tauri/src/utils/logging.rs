@@ -4,7 +4,7 @@ use time;
 #[cfg(not(debug_assertions))]
 use log::Level;
 
-fn setup_logging_plugin() -> tauri_plugin_log::Builder {
+pub fn setup_logging_plugin() -> tauri_plugin_log::Builder {
     let builder = tauri_plugin_log::Builder::new()
         .clear_targets()
         .max_file_size(2_000_000)
