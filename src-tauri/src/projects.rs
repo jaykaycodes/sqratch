@@ -1,123 +1,173 @@
-use std::path::Path;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 
-use crate::db::ConnectionInfo;
-use crate::utils;
-
-#[derive(Debug, Clone)]
-pub struct Project {
-    pub id: ProjectId,
-    pub name: String, // User-friendly name for the project
-    pub connection_info: ConnectionInfo,
-}
-
-impl Project {
-    pub fn new(id: ProjectId, name: String, connection_info: ConnectionInfo) -> Self {
-        Self {
-            id,
-            name,
-            connection_info,
-        }
-    }
-}
-
-/// Represents a project identifier that can either be a database URL or directory path
-#[derive(Debug, Clone)]
+/// Represents a project identifier that can be a database URL, directory path, or file path
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(tag = "type", content = "value")]
 pub enum ProjectId {
+    /// Direct database URL
     Url(String),
-    Directory(String),
+
+    /// Directory containing a .env file
+    Directory(PathBuf),
+
+    /// Direct path to a .env file
+    File(PathBuf),
 }
 
 impl ProjectId {
-    /// Convert the project ID to a string representation
-    pub fn to_string(&self) -> String {
+    /// Convert the ProjectId to a unique window label
+    pub fn to_window_label(&self) -> String {
         match self {
-            ProjectId::Url(url) => url.clone(),
-            ProjectId::Directory(path) => path.clone(),
+            ProjectId::Url(url) => format!("project_url_{}", hash_string(url)),
+            ProjectId::Directory(path) => {
+                format!("project_dir_{}", hash_string(&path.to_string_lossy()))
+            }
+            ProjectId::File(path) => {
+                format!("project_file_{}", hash_string(&path.to_string_lossy()))
+            }
         }
     }
 
-    /// Derive a user-friendly name from the ProjectId
-    pub fn derive_name(&self) -> String {
+    /// Get a user-friendly display name for the project
+    pub fn display_name(&self) -> String {
         match self {
             ProjectId::Url(url) => {
-                // For simplicity now, just use the full URL, truncating if too long
+                // Create a more readable version of the URL
                 if url.len() > 50 {
                     format!("{}...", &url[..47])
                 } else {
                     url.clone()
                 }
             }
-            ProjectId::Directory(path_str) => {
-                // Use the final component of the path (directory name)
-                Path::new(path_str).file_name().map_or_else(
-                    || path_str.clone(),
-                    |os_str| os_str.to_string_lossy().into_owned(),
+            ProjectId::Directory(path) => {
+                // Use the directory name
+                path.file_name().map_or_else(
+                    || path.to_string_lossy().into_owned(),
+                    |name| name.to_string_lossy().into_owned(),
                 )
             }
+            ProjectId::File(path) => {
+                // Use the parent directory + filename
+                let file_name = path.file_name().map_or_else(
+                    || path.to_string_lossy().into_owned(),
+                    |name| name.to_string_lossy().into_owned(),
+                );
+
+                path.parent()
+                    .and_then(|parent| parent.file_name())
+                    .map_or_else(
+                        || file_name.clone(),
+                        |parent_name| format!("{}/{}", parent_name.to_string_lossy(), file_name),
+                    )
+            }
         }
     }
 }
 
-/// Parse the "project" arg into either a database URL or absolute directory path
-pub fn parse_project_arg(project_arg: &str, cwd: &str) -> Result<ProjectId, String> {
-    // Check if it's a URL (has :// pattern)
-    if project_arg.contains("://") {
-        return Ok(ProjectId::Url(project_arg.to_string()));
+/// Loads the database connection string from the project identifier
+pub fn load_connection_string(project_id: &ProjectId) -> Result<String, String> {
+    match project_id {
+        ProjectId::Url(url) => Ok(url.clone()),
+        ProjectId::Directory(path) => {
+            // Look for .env file in the directory
+            let env_path = path.join(".env");
+            if !env_path.exists() {
+                return Err(format!("Env file not found: {}", path.to_string_lossy()));
+            }
+            extract_db_url_from_env_file(&env_path)
+        }
+        ProjectId::File(path) => {
+            // Use the file directly as a .env file
+            extract_db_url_from_env_file(path)
+        }
+    }
+}
+
+/// Extracts DATABASE_URL from a .env file
+fn extract_db_url_from_env_file(path: &Path) -> Result<String, String> {
+    // Make sure the file exists
+    if !path.exists() {
+        return Err(format!("Path not found: {}", path.to_string_lossy()));
     }
 
-    // Otherwise treat as a path and ensure it's absolute
-    let path = if Path::new(project_arg).is_absolute() {
-        Path::new(project_arg).to_path_buf()
+    // Check that it's a file
+    if !path.is_file() {
+        return Err(format!("Not a file: {}", path.to_string_lossy()));
+    }
+
+    // Read the file content
+    let content = fs::read_to_string(path)
+        .map_err(|_| format!("Failed to read file: {}", path.to_string_lossy()))?;
+
+    // Parse manually to find DATABASE_URL
+    for line in content.lines() {
+        let line = line.trim();
+        // Skip empty lines and comments
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        // Split by first equals sign
+        if let Some((key, value)) = line.split_once('=') {
+            let key = key.trim();
+            if key == "DATABASE_URL" {
+                // Clean the value (remove quotes if present)
+                let url = value.trim().trim_matches('"').trim_matches('\'');
+                if url.is_empty() {
+                    return Err(format!("Empty connection string"));
+                }
+                return Ok(url.to_string());
+            }
+        }
+    }
+
+    Err(format!(
+        "Database URL not found in file: {}",
+        path.to_string_lossy()
+    ))
+}
+
+/// Parse a project argument from the command line
+pub fn parse_project_arg(arg: &str, cwd: &str) -> Result<ProjectId, String> {
+    // Check if it's a URL (has a scheme)
+    if arg.contains("://") {
+        return Ok(ProjectId::Url(arg.to_string()));
+    }
+
+    // Otherwise, treat as a path (relative to cwd if not absolute)
+    let path = if Path::new(arg).is_absolute() {
+        Path::new(arg).to_path_buf()
     } else {
-        Path::new(cwd).join(project_arg)
+        Path::new(cwd).join(arg)
     };
 
-    // Ensure path exists and is a directory before creating ProjectId::Directory
-    match std::fs::metadata(&path) {
-        Ok(metadata) => {
-            if metadata.is_dir() {
-                Ok(ProjectId::Directory(path.to_string_lossy().into_owned()))
-            } else {
-                Err(format!(
-                    "Project path exists but is not a directory: {}",
-                    path.display()
-                ))
-            }
+    // Check if the path exists
+    if !path.exists() {
+        return Err(format!("Path not found: {}", path.to_string_lossy()));
+    }
+
+    // Determine if it's a file or directory
+    if path.is_dir() {
+        Ok(ProjectId::Directory(path))
+    } else {
+        // Check if it's a .env file
+        if path.file_name().map_or(false, |name| name == ".env") {
+            Ok(ProjectId::File(path))
+        } else {
+            // Check if it's another type of file (could be a database file itself)
+            Ok(ProjectId::File(path))
         }
-        Err(e) => Err(format!("Invalid project path: {}: {}", path.display(), e)),
     }
 }
 
-/// Load connection info from either a database URL or directory containing .env
-pub fn load_connection_info(project_id: &ProjectId) -> Result<ConnectionInfo, String> {
-    match project_id {
-        ProjectId::Url(url) => utils::strings::parse_connection_string(url),
-        ProjectId::Directory(path) => {
-            let env_path = Path::new(path).join(".env");
-            if !env_path.exists() {
-                return Err(format!("No .env file found in directory: {}", path));
-            }
+// Simple hash function to create an identifier from a string
+fn hash_string(s: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
 
-            // Read .env file content
-            let content = std::fs::read_to_string(&env_path)
-                .map_err(|e| format!("Failed to read .env file: {}", e))?;
-
-            // Parse the file content to find DATABASE_URL
-            for line in content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-
-                if let Some((key, value)) = line.split_once('=') {
-                    if key.trim() == "DATABASE_URL" {
-                        let url = value.trim().trim_matches('"').trim_matches('\'');
-                        return utils::strings::parse_connection_string(url);
-                    }
-                }
-            }
-
-            Err("DATABASE_URL not found in .env file".to_string())
-        }
-    }
+    let mut hasher = DefaultHasher::new();
+    s.hash(&mut hasher);
+    format!("{:x}", hasher.finish())
 }

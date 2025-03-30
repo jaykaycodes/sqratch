@@ -1,8 +1,8 @@
-use crate::db::DbError;
+use crate::db::errors::DbError;
 
 #[derive(Debug, thiserror::Error, specta::Type)]
 #[serde(tag = "type", content = "data")]
-pub enum Error {
+pub enum AppError {
     #[error(transparent)]
     Io(
         #[from]
@@ -29,20 +29,24 @@ enum ErrorKind {
 }
 
 // we must manually implement serde::Serialize
-impl serde::Serialize for Error {
+impl serde::Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::ser::Serializer,
     {
         let error_message = self.to_string();
         let error_kind = match self {
-            Error::Io(_) => ErrorKind::Io(error_message),
-            Error::Db(_) => ErrorKind::Db(error_message),
-            Error::Other(_) => ErrorKind::Other(error_message),
+            AppError::Io(_) => ErrorKind::Io(error_message),
+            AppError::Db(_) => ErrorKind::Db(error_message),
+            AppError::Other(_) => ErrorKind::Other(error_message),
         };
 
         error_kind.serialize(serializer)
     }
 }
 
-pub type CommandResult<T> = Result<T, Error>;
+impl From<String> for AppError {
+    fn from(error: String) -> Self {
+        AppError::Other(error)
+    }
+}
