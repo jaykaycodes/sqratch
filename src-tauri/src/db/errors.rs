@@ -1,5 +1,5 @@
-use std::fmt;
 use sqlx::Error as SqlxError;
+use std::fmt;
 
 /// Database error types
 #[derive(Debug)]

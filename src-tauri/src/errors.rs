@@ -10,6 +10,12 @@ pub enum AppError {
         std::io::Error,
     ),
     #[error(transparent)]
+    Cli(
+        #[from]
+        #[serde(skip)]
+        clap::Error,
+    ),
+    #[error(transparent)]
     Db(
         #[from]
         #[serde(skip)]
@@ -24,6 +30,7 @@ pub enum AppError {
 #[serde(rename_all = "camelCase")]
 enum ErrorKind {
     Io(String),
+    Cli(String),
     Db(String),
     Other(String),
 }
@@ -37,6 +44,7 @@ impl serde::Serialize for AppError {
         let error_message = self.to_string();
         let error_kind = match self {
             AppError::Io(_) => ErrorKind::Io(error_message),
+            AppError::Cli(_) => ErrorKind::Cli(error_message),
             AppError::Db(_) => ErrorKind::Db(error_message),
             AppError::Other(_) => ErrorKind::Other(error_message),
         };

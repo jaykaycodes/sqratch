@@ -12,7 +12,7 @@ mod state;
 use std::env;
 
 use crate::commands::db::{DbApi, DbApiImpl};
-use crate::launch::{close_window, launch_app, launch_window};
+use crate::launch::{close_window, launch_app, launch_instance};
 use crate::plugins::setup_logging;
 use crate::state::AppState;
 use taurpc::Router;
@@ -29,14 +29,13 @@ async fn main() {
 
     let builder = tauri::Builder::default()
         .manage(AppState::default())
+        // NOTE: single instance should always come first
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            launch_instance(app, args, &cwd);
+        }))
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            log::debug!("Launching window with args: {:?} and cwd: {}", args, cwd);
-            if let Err(e) = launch_window(app, args, &cwd) {
-                eprintln!("Error: {}", e);
-            }
-        }))
         .invoke_handler(router.into_handler())
         .setup(|app| {
             setup_logging(app.handle())?;

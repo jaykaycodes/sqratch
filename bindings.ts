@@ -4,7 +4,7 @@ import { createTauRPCProxy as createProxy, type InferCommandOutput } from 'taurp
 type TAURI_CHANNEL<T> = (response: T) => void
 
 
-export type AppError = { type: "Io" } | { type: "Db" } | { type: "Other"; data: string }
+export type AppError = { type: "Io" } | { type: "Cli" } | { type: "Db" } | { type: "Other"; data: string }
 
 /**
  * Column definition in a query result
@@ -363,7 +363,7 @@ columns: ColumnInfo[];
  */
 definition: string | null }
 
-const ARGS_MAP = { 'db':'{"disconnect":[],"is_connected":[],"get_tables":[],"connect":[],"execute_query":["query"],"get_schema_info":[]}' }
+const ARGS_MAP = { 'db':'{"get_schema_info":[],"disconnect":[],"is_connected":[],"get_tables":[],"connect":[],"execute_query":["query"]}' }
 export type Router = { 'db': { is_connected: () => Promise<boolean>, 
 connect: () => Promise<null>, 
 disconnect: () => Promise<null>, 

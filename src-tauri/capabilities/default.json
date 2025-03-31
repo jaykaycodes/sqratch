@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["*"],
+  "windows": [
+    "*"
+  ],
   "permissions": [
     "core:default",
     "opener:default",
@@ -32,12 +34,28 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "**/.sqratch", "recursive": true },
-        { "path": "**", "recursive": false },
-        { "path": "$HOME", "recursive": true },
-        { "path": "$USERPROFILE", "recursive": true },
-        { "path": "$APPDATA", "recursive": true }
+        {
+          "path": "**/.sqratch",
+          "recursive": true
+        },
+        {
+          "path": "**",
+          "recursive": false
+        },
+        {
+          "path": "$HOME",
+          "recursive": true
+        },
+        {
+          "path": "$USERPROFILE",
+          "recursive": true
+        },
+        {
+          "path": "$APPDATA",
+          "recursive": true
+        }
       ]
-    }
+    },
+    "dialog:default"
   ]
 }

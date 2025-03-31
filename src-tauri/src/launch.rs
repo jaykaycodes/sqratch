@@ -4,6 +4,7 @@ use std::env;
 use std::ffi::OsString;
 use std::fmt::Debug;
 use tauri::{AppHandle, Manager, Window};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 use crate::errors::AppError;
 use crate::projects::{parse_project_arg, ProjectId};
@@ -18,7 +19,7 @@ struct SqratchArgs {
     project: Option<String>,
 }
 
-pub fn launch_window<T>(app: &AppHandle, args: Vec<T>, cwd: &str) -> Result<(), AppError>
+fn launch_window<T>(app: &AppHandle, args: Vec<T>, cwd: &str) -> Result<(), AppError>
 where
     T: Into<OsString> + Clone + Debug,
 {
@@ -26,7 +27,7 @@ where
     attach_console();
 
     log::debug!("Received args: {:?} from cwd: {}", args, cwd);
-    let args = SqratchArgs::parse_from(args);
+    let args = SqratchArgs::try_parse_from(args)?;
     log::debug!("Parsed args: {:?}", args);
 
     if let Some(project_id) = args.project {
@@ -43,13 +44,29 @@ where
     Ok(())
 }
 
+pub fn launch_instance(app: &AppHandle, args: Vec<String>, cwd: &str) {
+    launch_window(app, args, cwd).unwrap_or_else(|e| {
+        app.dialog()
+            .message(format!("Failed to open project: {}", e))
+            .kind(MessageDialogKind::Error)
+            .title("Sqratch")
+            .buttons(MessageDialogButtons::Ok)
+            .show(|_| {});
+    })
+}
+
 pub fn launch_app(app: &AppHandle) {
     let args = app.env().args_os;
     let dir = env::current_dir().unwrap_or_default();
     let cwd = dir.to_string_lossy();
 
     launch_window(app, args, &cwd).unwrap_or_else(|e| {
-        eprintln!("Error: {}", e);
+        app.dialog()
+            .message(format!("Failed to open: {}", e))
+            .kind(MessageDialogKind::Error)
+            .title("Sqratch")
+            .buttons(MessageDialogButtons::Ok)
+            .blocking_show();
         app.exit(1);
     });
 }
@@ -102,7 +119,7 @@ fn open_launcher_window(app: &AppHandle) -> Result<(), AppError> {
     let window_config = tauri::WebviewWindowBuilder::new(
         app,
         LAUNCHER_LABEL,
-        tauri::WebviewUrl::App("launcher.html".into()),
+        tauri::WebviewUrl::App("index.html".into()),
     )
     .title("Projects");
 

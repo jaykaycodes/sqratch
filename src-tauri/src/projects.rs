@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::errors::AppError;
+
 /// Represents a project identifier that can be a database URL, directory path, or file path
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "type", content = "value")]
@@ -130,7 +132,7 @@ fn extract_db_url_from_env_file(path: &Path) -> Result<String, String> {
 }
 
 /// Parse a project argument from the command line
-pub fn parse_project_arg(arg: &str, cwd: &str) -> Result<ProjectId, String> {
+pub fn parse_project_arg(arg: &str, cwd: &str) -> Result<ProjectId, AppError> {
     // Check if it's a URL (has a scheme)
     if arg.contains("://") {
         return Ok(ProjectId::Url(arg.to_string()));
@@ -144,12 +146,19 @@ pub fn parse_project_arg(arg: &str, cwd: &str) -> Result<ProjectId, String> {
     };
 
     // Canonicalize to resolve .. and symlinks
-    let path = fs::canonicalize(&path)
-        .map_err(|_| format!("Failed to resolve path: {}", path.to_string_lossy()))?;
+    let path = fs::canonicalize(&path).map_err(|_| {
+        AppError::Other(format!(
+            "Failed to resolve path: {}",
+            path.to_string_lossy()
+        ))
+    })?;
 
     // Check if the path exists
     if !path.exists() {
-        return Err(format!("Path not found: {}", path.to_string_lossy()));
+        return Err(AppError::Other(format!(
+            "Path not found: {}",
+            path.to_string_lossy()
+        )));
     }
 
     // Determine if it's a file or directory
