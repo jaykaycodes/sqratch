@@ -1,6 +1,7 @@
 use clap::Parser;
 use log;
 use std::error::Error;
+use std::ffi::OsString;
 use tauri::{AppHandle, Manager, Window};
 
 use crate::projects::{parse_project_arg, ProjectId};
@@ -11,18 +12,20 @@ pub const LAUNCHER_LABEL: &str = "launcher";
 
 #[derive(Parser, Debug, Default)]
 #[command(version, about)]
-pub struct SqratchArgs {
+struct SqratchArgs {
     /// Project to open (URL, directory, or file path)
     project: Option<String>,
 }
 
-pub fn launch_window(
-    app: &AppHandle,
-    args: SqratchArgs,
-    cwd: String,
-) -> Result<(), Box<dyn Error>> {
+pub fn launch_window<I, T>(app: &AppHandle, args: I, cwd: String) -> Result<(), Box<dyn Error>>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     #[cfg(all(windows, not(dev)))]
     attach_console();
+
+    let args = SqratchArgs::try_parse_from(args).unwrap_or_default();
 
     log::debug!("Launching window with args: {:?}", args);
     if let Some(project_arg) = args.project {
@@ -37,6 +40,18 @@ pub fn launch_window(
     free_console();
 
     Ok(())
+}
+
+/// Convenience wrapper that derives arguments from the app handle
+pub fn launch_app(app: &AppHandle) {
+    let cwd = std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    launch_window(app, app.env().args_os, cwd).unwrap_or_else(|e| {
+        eprintln!("Failed to launch sqratch: {}", e);
+        app.exit(1);
+    });
 }
 
 pub fn close_window(window: &Window) {

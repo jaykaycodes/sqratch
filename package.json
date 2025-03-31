@@ -13,7 +13,8 @@
     "build:cli": "bun build ./cli/index.ts --outdir ./dist/cli --target node",
     "build": "tauri build && bun run build:cli",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "cargo": "cd src-tauri && cargo"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -3,7 +3,8 @@
 
 mod commands;
 mod db;
-mod launcher;
+mod launch;
+mod plugins;
 mod projects;
 mod state;
 mod utils;
@@ -11,9 +12,9 @@ mod utils;
 use std::env;
 
 use crate::commands::db::{DbApi, DbApiImpl};
-use crate::launcher::{close_window, launch_window, SqratchArgs};
+use crate::launch::{close_window, launch_app, launch_window};
+use crate::plugins::logging_plugin;
 use crate::state::AppState;
-use clap::Parser;
 use tauri::Manager;
 use taurpc::Router;
 
@@ -27,34 +28,19 @@ async fn main() {
         )
         .merge(DbApiImpl::default().into_handler());
 
-    let logging = utils::logging::setup_logging_plugin();
-
     let builder = tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(logging.build())
+        .plugin(logging_plugin())
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            let args = SqratchArgs::try_parse_from(args).unwrap_or_default();
-
-            let _ = launch_window(app, args, cwd).map_err(|e| {
-                log::error!("Failed to open window: {}", e);
-            });
+            if let Err(e) = launch_window(app, args, cwd) {
+                eprintln!("Failed to launch window: {}", e);
+            }
         }))
         .invoke_handler(router.into_handler())
         .setup(|app| {
-            let app_handle = app.app_handle();
-            let args = app_handle.env().args_os;
-
-            if let Err(e) = launch_window(
-                &app_handle,
-                SqratchArgs::try_parse_from(args).unwrap_or_default(),
-                env::current_dir().unwrap().to_string_lossy().to_string(),
-            ) {
-                log::error!("Failed to open window: {}", e);
-                app_handle.exit(1);
-            }
-
+            launch_app(app.app_handle());
             Ok(())
         })
         .on_window_event(|window, event| match event {
