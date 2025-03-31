@@ -61,7 +61,7 @@ fn open_project_window(app: &AppHandle, project_id: &ProjectId) -> Result<(), Ap
     let window_config = tauri::WebviewWindowBuilder::new(
         app,
         project_id.to_window_label(),
-        tauri::WebviewUrl::App("project.html".into()),
+        tauri::WebviewUrl::App("index.html".into()),
     )
     .title(project_id.display_name());
 
