@@ -6,7 +6,6 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "cli:default",
     "core:app:allow-version",
     "core:event:allow-listen",
     "core:event:allow-unlisten",

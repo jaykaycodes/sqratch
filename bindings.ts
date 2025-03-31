@@ -363,7 +363,7 @@ columns: ColumnInfo[];
  */
 definition: string | null }
 
-const ARGS_MAP = { 'db':'{"is_connected":[],"execute_query":["query"],"get_tables":[],"connect":[],"disconnect":[],"get_schema_info":[]}' }
+const ARGS_MAP = { 'db':'{"is_connected":[],"get_tables":[],"disconnect":[],"execute_query":["query"],"connect":[],"get_schema_info":[]}' }
 export type Router = { 'db': { is_connected: () => Promise<boolean>, 
 connect: () => Promise<null>, 
 disconnect: () => Promise<null>, 

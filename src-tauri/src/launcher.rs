@@ -1,6 +1,7 @@
+use clap::Parser;
 use log;
+use std::error::Error;
 use tauri::{AppHandle, Manager, Window};
-use tauri_plugin_cli::CliExt;
 
 use crate::projects::{parse_project_arg, ProjectId};
 use crate::state::{cleanup_window_state, init_state_for_project};
@@ -8,36 +9,34 @@ use crate::utils::errors::AppError;
 
 pub const LAUNCHER_LABEL: &str = "launcher";
 
-pub fn open_window(app: &AppHandle, cwd: String) {
-    let project_arg = match app.cli().matches() {
-        Ok(m) => match m.args.get("project") {
-            Some(arg) => Some(arg.value.to_string()),
-            None => None,
-        },
-        Err(_) => {
-            log::error!("Failed to parse CLI arguments");
-            return;
-        }
-    };
+#[derive(Parser, Debug, Default)]
+#[command(version, about)]
+pub struct SqratchArgs {
+    /// Project to open (URL, directory, or file path)
+    project: Option<String>,
+}
 
-    if let Some(project_arg) = project_arg {
-        // Open specific project
-        match parse_project_arg(&project_arg, &cwd) {
-            Ok(project_id) => {
-                if let Err(e) = open_project_window(app, &project_id) {
-                    log::error!("Failed to create project window: {}", e);
-                }
-            }
-            Err(e) => {
-                log::error!("Failed to parse project argument: {}", e);
-            }
-        }
+pub fn launch_window(
+    app: &AppHandle,
+    args: SqratchArgs,
+    cwd: String,
+) -> Result<(), Box<dyn Error>> {
+    #[cfg(all(windows, not(dev)))]
+    attach_console();
+
+    log::debug!("Launching window with args: {:?}", args);
+    if let Some(project_arg) = args.project {
+        let project_id = parse_project_arg(&project_arg, &cwd)?;
+        open_project_window(app, &project_id)?;
     } else {
         // No project specified, open launcher
-        if let Err(e) = open_launcher_window(app) {
-            log::error!("Failed to create launcher window: {}", e);
-        }
+        open_launcher_window(app)?;
     }
+
+    #[cfg(all(windows, not(dev)))]
+    free_console();
+
+    Ok(())
 }
 
 pub fn close_window(window: &Window) {
@@ -48,6 +47,8 @@ pub fn close_window(window: &Window) {
 
 /// Opens (or focuses) a project window using a unique window ID
 fn open_project_window(app: &AppHandle, project_id: &ProjectId) -> Result<(), AppError> {
+    log::debug!("Opening project window: {}", project_id.to_window_label());
+
     // If window already exists, just focus it
     if let Some(existing_window) = app.get_webview_window(&project_id.to_window_label()) {
         let _ = existing_window.show();
@@ -72,6 +73,8 @@ fn open_project_window(app: &AppHandle, project_id: &ProjectId) -> Result<(), Ap
 
 /// Opens (or focuses) the launcher window when no project is specified
 fn open_launcher_window(app: &AppHandle) -> Result<(), String> {
+    log::debug!("Opening launcher window");
+
     // Check if launcher already exists
     if let Some(existing_window) = app.get_webview_window(LAUNCHER_LABEL) {
         // Just focus the existing launcher instead of creating a new one
@@ -91,4 +94,23 @@ fn open_launcher_window(app: &AppHandle) -> Result<(), String> {
     let _launcher = window_config.build().map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+/// Only on windows.
+///
+/// Attaches the console so the user can see output in the terminal.
+#[cfg(all(windows, not(dev)))]
+fn attach_console() {
+    use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
+    let _ = unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
+}
+
+/// Only on windows.
+///
+/// Frees the console so the user won't see weird println's
+/// after he is done using the cli.
+#[cfg(all(windows, not(dev)))]
+fn free_console() {
+    use windows::Win32::System::Console::FreeConsole;
+    let _ = unsafe { FreeConsole() };
 }

@@ -10,15 +10,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "title": "Sqratch",
-        "width": 800,
-        "height": 600,
-        "center": true,
-        "fullscreen": false
-      }
-    ],
     "security": {
       "csp": null,
       "capabilities": ["default"]
@@ -40,18 +31,6 @@
   "plugins": {
     "fs": {
       "requireLiteralLeadingDot": false
-    },
-    "cli": {
-      "description": "Sqratch SQL Database Client",
-      "args": [
-        {
-          "name": "project",
-          "description": "Path to the project with .env or a database URL",
-          "index": 1,
-          "takesValue": true
-        }
-      ],
-      "subcommands": {}
     }
   }
 }

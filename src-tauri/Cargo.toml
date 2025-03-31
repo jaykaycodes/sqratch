@@ -15,7 +15,6 @@ tauri-build = { version = "2.1.0", features = [] }
 tauri = { version = "2.4.0", features = [] }
 tauri-plugin-opener = "2.2.6"
 tauri-plugin-fs = "2.2.0"
-tauri-plugin-cli = "2.2.0"
 tauri-plugin-log = "2.3.1"
 taurpc = "0.4.1"
 thiserror = "2.0.12"

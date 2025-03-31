@@ -8,9 +8,13 @@ mod projects;
 mod state;
 mod utils;
 
+use std::env;
+
 use crate::commands::db::{DbApi, DbApiImpl};
-use crate::launcher::{close_window, open_window};
+use crate::launcher::{close_window, launch_window, SqratchArgs};
 use crate::state::AppState;
+use clap::Parser;
+use tauri::Manager;
 use taurpc::Router;
 
 // Our main entry point for the application
@@ -25,22 +29,42 @@ async fn main() {
 
     let logging = utils::logging::setup_logging_plugin();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_cli::init())
         .plugin(logging.build())
-        .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
-            open_window(app, cwd);
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            let args = SqratchArgs::try_parse_from(args).unwrap_or_default();
+
+            let _ = launch_window(app, args, cwd).map_err(|e| {
+                log::error!("Failed to open window: {}", e);
+            });
         }))
         .invoke_handler(router.into_handler())
+        .setup(|app| {
+            let app_handle = app.app_handle();
+            let args = app_handle.env().args_os;
+
+            if let Err(e) = launch_window(
+                &app_handle,
+                SqratchArgs::try_parse_from(args).unwrap_or_default(),
+                env::current_dir().unwrap().to_string_lossy().to_string(),
+            ) {
+                log::error!("Failed to open window: {}", e);
+                app_handle.exit(1);
+            }
+
+            Ok(())
+        })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::Destroyed => {
                 close_window(window);
             }
             _ => {}
-        })
+        });
+
+    builder
         .run(tauri::generate_context!())
         .expect("Error while running tauri application");
 }
