@@ -3,19 +3,18 @@
 
 mod commands;
 mod db;
+mod errors;
 mod launch;
 mod plugins;
 mod projects;
 mod state;
-mod utils;
 
 use std::env;
 
 use crate::commands::db::{DbApi, DbApiImpl};
 use crate::launch::{close_window, launch_app, launch_window};
-use crate::plugins::logging_plugin;
+use crate::plugins::setup_logging;
 use crate::state::AppState;
-use tauri::Manager;
 use taurpc::Router;
 
 // Our main entry point for the application
@@ -32,15 +31,16 @@ async fn main() {
         .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(logging_plugin())
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            if let Err(e) = launch_window(app, args, cwd) {
-                eprintln!("Failed to launch window: {}", e);
+            log::debug!("Launching window with args: {:?} and cwd: {}", args, cwd);
+            if let Err(e) = launch_window(app, args, &cwd) {
+                eprintln!("Error: {}", e);
             }
         }))
         .invoke_handler(router.into_handler())
         .setup(|app| {
-            launch_app(app.app_handle());
+            setup_logging(app.handle())?;
+            launch_app(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| match event {

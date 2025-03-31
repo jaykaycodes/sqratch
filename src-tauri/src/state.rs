@@ -4,8 +4,8 @@ use std::sync::RwLock;
 use tauri::{AppHandle, Manager, Runtime, Window};
 
 use crate::db::client::{create_client, DatabaseClientRef};
+use crate::errors::AppError;
 use crate::projects::{load_connection_string, ProjectId};
-use crate::utils::errors::AppError;
 
 /// A map of window labels to database clients
 pub struct AppState {

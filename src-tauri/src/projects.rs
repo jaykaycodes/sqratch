@@ -143,6 +143,10 @@ pub fn parse_project_arg(arg: &str, cwd: &str) -> Result<ProjectId, String> {
         Path::new(cwd).join(arg)
     };
 
+    // Canonicalize to resolve .. and symlinks
+    let path = fs::canonicalize(&path)
+        .map_err(|_| format!("Failed to resolve path: {}", path.to_string_lossy()))?;
+
     // Check if the path exists
     if !path.exists() {
         return Err(format!("Path not found: {}", path.to_string_lossy()));

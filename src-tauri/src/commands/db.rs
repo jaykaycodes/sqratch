@@ -2,8 +2,8 @@ use tauri::{Runtime, Window};
 use taurpc;
 
 use crate::db::types::{QueryResult, SchemaInfo, TableInfo};
+use crate::errors::AppError;
 use crate::state::get_window_client;
-use crate::utils::errors::AppError;
 
 #[taurpc::procedures(path = "db")]
 pub trait DbApi {
