@@ -23,6 +23,7 @@ async fn main() {
     let router = Router::new()
         .export_config(
             specta_typescript::Typescript::default()
+                .formatter(specta_typescript::formatter::biome)
                 .bigint(specta_typescript::BigIntExportBehavior::String),
         )
         .merge(DbApiImpl::default().into_handler());

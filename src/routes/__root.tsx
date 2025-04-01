@@ -5,18 +5,18 @@ import type { getDefaultStore } from 'jotai'
 import { UIProvider } from '#/components/ui-provider'
 
 export interface RootRouteContext {
-  store: ReturnType<typeof getDefaultStore>
-  queryClient: QueryClient
+	store: ReturnType<typeof getDefaultStore>
+	queryClient: QueryClient
 }
 
 export const Route = createRootRoute({
-  component: RootLayout,
+	component: RootLayout,
 })
 
 export function RootLayout() {
-  return (
-    <UIProvider>
-      <Outlet />
-    </UIProvider>
-  )
+	return (
+		<UIProvider>
+			<Outlet />
+		</UIProvider>
+	)
 }

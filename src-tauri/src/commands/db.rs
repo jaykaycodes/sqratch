@@ -5,7 +5,7 @@ use crate::db::types::{QueryResult, SchemaInfo, TableInfo};
 use crate::errors::AppError;
 use crate::state::get_window_client;
 
-#[taurpc::procedures(path = "db")]
+#[taurpc::procedures(path = "db", export_to = "../src/lib/taurpc.ts")]
 pub trait DbApi {
     // Test connection with raw connection string
     // TODO: Implement this w/o a current connection

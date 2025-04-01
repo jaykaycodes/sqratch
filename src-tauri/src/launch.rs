@@ -3,7 +3,7 @@ use log;
 use std::env;
 use std::ffi::OsString;
 use std::fmt::Debug;
-use tauri::{AppHandle, Manager, Window};
+use tauri::{AppHandle, Manager, WebviewWindow, Window};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 use crate::errors::AppError;
@@ -79,12 +79,14 @@ pub fn close_window(window: &Window) {
 
 /// Opens (or focuses) a project window using a unique window ID
 fn open_project_window(app: &AppHandle, project_id: &ProjectId) -> Result<(), AppError> {
-    log::debug!("Opening window: {}", project_id.to_window_label());
+    log::debug!(
+        "Opening window: {} ({})",
+        project_id.display_name(),
+        project_id.to_window_label()
+    );
 
     // If window already exists, just focus it
-    if let Some(existing_window) = app.get_webview_window(&project_id.to_window_label()) {
-        let _ = existing_window.show();
-        let _ = existing_window.set_focus();
+    if let Some(_) = ensure_window_visible(app, &project_id.to_window_label()) {
         return Ok(());
     }
 
@@ -94,7 +96,7 @@ fn open_project_window(app: &AppHandle, project_id: &ProjectId) -> Result<(), Ap
     let window_config = tauri::WebviewWindowBuilder::new(
         app,
         project_id.to_window_label(),
-        tauri::WebviewUrl::App("index.html".into()),
+        tauri::WebviewUrl::App("project".into()),
     )
     .title(project_id.display_name());
 
@@ -108,24 +110,28 @@ fn open_launcher_window(app: &AppHandle) -> Result<(), AppError> {
     log::debug!("Opening launcher window");
 
     // Check if launcher already exists
-    if let Some(existing_window) = app.get_webview_window(LAUNCHER_LABEL) {
-        // Just focus the existing launcher instead of creating a new one
-        let _ = existing_window.show();
-        let _ = existing_window.set_focus();
+    if let Some(_) = ensure_window_visible(app, LAUNCHER_LABEL) {
         return Ok(());
     }
 
     // Create the launcher window using Tauri v2 API
-    let window_config = tauri::WebviewWindowBuilder::new(
-        app,
-        LAUNCHER_LABEL,
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("Projects");
+    let window_config =
+        tauri::WebviewWindowBuilder::new(app, LAUNCHER_LABEL, tauri::WebviewUrl::App("".into()))
+            .title("sqratch");
 
     let _launcher = window_config.build().map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+fn ensure_window_visible(app: &AppHandle, label: &str) -> Option<WebviewWindow> {
+    if let Some(window) = app.get_webview_window(label) {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Some(window);
+    }
+
+    None
 }
 
 /// Only on windows.

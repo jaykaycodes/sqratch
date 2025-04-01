@@ -28,3 +28,4 @@ dist-ssr
 
 # Generated files
 routeTree.gen.ts
+src/lib/taurpc.ts
