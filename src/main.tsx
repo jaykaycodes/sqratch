@@ -28,17 +28,17 @@ const defaultContext: RootRouteContext = {
 
 const router = createRouter({
 	routeTree,
-	defaultPreload: 'intent',
+	context: defaultContext,
 	trailingSlash: 'never',
-	defaultNotFoundComponent: DefaultNotFound,
-	defaultPendingComponent: DefaultPending,
-	defaultErrorComponent: ErrorComponent,
+	defaultPreload: 'intent',
 	// Since we're using React Query, we don't want loader calls to ever be stale
 	// This will ensure that the loader is always called when the route is preloaded or visited
 	defaultPreloadStaleTime: 0,
 	parseSearch: parseSearchWith(jsurl.parse),
 	stringifySearch: stringifySearchWith(jsurl.stringify),
-	context: defaultContext,
+	defaultNotFoundComponent: DefaultNotFound,
+	defaultPendingComponent: DefaultPending,
+	defaultErrorComponent: ErrorComponent,
 })
 
 declare module '@tanstack/react-router' {

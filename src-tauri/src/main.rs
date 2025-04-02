@@ -29,6 +29,7 @@ async fn main() {
         .merge(DbApiImpl::default().into_handler());
 
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .manage(AppState::default())
         // NOTE: single instance should always come first
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {

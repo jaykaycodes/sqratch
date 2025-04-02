@@ -1,61 +1,61 @@
 {
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": [
-    "*"
-  ],
-  "permissions": [
-    "core:default",
-    "opener:default",
-    "core:app:allow-version",
-    "core:event:allow-listen",
-    "core:event:allow-unlisten",
-    "core:event:allow-emit",
-    {
-      "identifier": "fs:allow-read-file",
-      "allow": [
-        {
-          "path": "$HOME/**/*.(db|db3|s3db|sl3|sqlite|sqlite3)"
-        }
-      ]
-    },
-    {
-      "identifier": "fs:allow-read-text-file",
-      "allow": [
-        {
-          "path": "$HOME/**/*.json"
-        },
-        {
-          "path": "$APPDATA/**/*.env"
-        }
-      ]
-    },
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        {
-          "path": "**/.sqratch",
-          "recursive": true
-        },
-        {
-          "path": "**",
-          "recursive": false
-        },
-        {
-          "path": "$HOME",
-          "recursive": true
-        },
-        {
-          "path": "$USERPROFILE",
-          "recursive": true
-        },
-        {
-          "path": "$APPDATA",
-          "recursive": true
-        }
-      ]
-    },
-    "dialog:default"
-  ]
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"description": "Capability for the main window",
+	"platforms": ["macOS", "windows", "linux"],
+	"windows": ["*"],
+	"permissions": [
+		"core:default",
+		"core:app:allow-version",
+		"core:event:allow-listen",
+		"core:event:allow-unlisten",
+		"core:event:allow-emit",
+		"opener:default",
+		"window-state:default",
+		"dialog:default",
+		{
+			"identifier": "fs:allow-read-file",
+			"allow": [
+				{
+					"path": "$HOME/**/*.(db|db3|s3db|sl3|sqlite|sqlite3)"
+				}
+			]
+		},
+		{
+			"identifier": "fs:allow-read-text-file",
+			"allow": [
+				{
+					"path": "$HOME/**/*.json"
+				},
+				{
+					"path": "$APPDATA/**/*.env"
+				}
+			]
+		},
+		{
+			"identifier": "fs:scope",
+			"allow": [
+				{
+					"path": "**/.sqratch",
+					"recursive": true
+				},
+				{
+					"path": "**",
+					"recursive": false
+				},
+				{
+					"path": "$HOME",
+					"recursive": true
+				},
+				{
+					"path": "$USERPROFILE",
+					"recursive": true
+				},
+				{
+					"path": "$APPDATA",
+					"recursive": true
+				}
+			]
+		}
+	]
 }

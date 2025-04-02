@@ -1,36 +1,29 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Sqratch",
-  "version": "0.1.0",
-  "identifier": "com.sqratch.app",
-  "build": {
-    "beforeDevCommand": "bun run dev:vite",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build:vite",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "security": {
-      "csp": null,
-      "capabilities": ["default"]
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "category": "DeveloperTool",
-    "licenseFile": "../LICENSE",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
-  },
-  "plugins": {
-    "fs": {
-      "requireLiteralLeadingDot": false
-    }
-  }
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Sqratch",
+	"version": "0.1.0",
+	"identifier": "com.sqratch.app",
+	"build": {
+		"beforeDevCommand": "bun run dev:vite",
+		"devUrl": "http://localhost:1420",
+		"beforeBuildCommand": "bun run build:vite",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"security": {
+			"csp": null,
+			"capabilities": ["default"]
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"category": "DeveloperTool",
+		"licenseFile": "../LICENSE"
+	},
+	"plugins": {
+		"fs": {
+			"requireLiteralLeadingDot": false
+		}
+	}
 }
