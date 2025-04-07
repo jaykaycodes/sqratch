@@ -7,6 +7,8 @@ use crate::state::get_window_client;
 
 #[taurpc::procedures(path = "db", export_to = "../src/lib/taurpc.ts")]
 pub trait DbApi {
+    async fn get_connection_string<R: Runtime>(window: Window<R>) -> Result<String, AppError>;
+
     // Test connection with raw connection string
     // TODO: Implement this w/o a current connection
     // async fn test_connection_string(conn_string: String) -> Result<String, AppError>;
@@ -44,6 +46,15 @@ impl Default for DbApiImpl {
 
 #[taurpc::resolvers]
 impl DbApi for DbApiImpl {
+    async fn get_connection_string<R: Runtime>(
+        self,
+        window: Window<R>,
+    ) -> Result<String, AppError> {
+        let client = get_window_client(&window)?;
+        let guard = client.lock().await;
+        Ok(guard.get_connection_string())
+    }
+
     async fn is_connected<R: Runtime>(self, window: Window<R>) -> Result<bool, AppError> {
         let client = get_window_client(&window)?;
         let guard = client.lock().await;

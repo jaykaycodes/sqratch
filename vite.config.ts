@@ -9,7 +9,15 @@ const host = import.meta.env.TAURI_DEV_HOST
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-	plugins: [TanStackRouterVite(), react(), tailwindcss()],
+	plugins: [
+		TanStackRouterVite(),
+		react({
+			babel: {
+				plugins: ['@legendapp/state/babel'],
+			},
+		}),
+		tailwindcss(),
+	],
 	resolve: {
 		alias: {
 			'#': path.resolve(__dirname, './src'),
@@ -33,7 +41,7 @@ export default defineConfig(async () => ({
 			: undefined,
 		watch: {
 			// 3. tell vite to ignore watching `src-tauri`
-			ignored: ['**/src-tauri/**'],
+			ignored: ['**/src-tauri/**', '.vscode/**', '.cursor/**'],
 		},
 	},
 

@@ -9,22 +9,14 @@ import {
 	RouterProvider,
 	stringifySearchWith,
 } from '@tanstack/react-router'
-import { getDefaultStore } from 'jotai'
 import * as jsurl from 'jsurl2'
 import ReactDOM from 'react-dom/client'
 
 import { DefaultNotFound, DefaultPending } from './components/default-screens'
-import { getQueryClient } from './lib/query-client'
 import type { RootRouteContext } from './routes/__root'
 import { routeTree } from './routeTree.gen'
 
-const store = getDefaultStore()
-const queryClient = getQueryClient()
-
-const defaultContext: RootRouteContext = {
-	store,
-	queryClient,
-}
+const defaultContext: RootRouteContext = {}
 
 const router = createRouter({
 	routeTree,

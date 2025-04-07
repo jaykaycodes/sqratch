@@ -1,13 +1,9 @@
-import type { QueryClient } from '@tanstack/react-query'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
-import type { getDefaultStore } from 'jotai'
 
-import { UIProvider } from '#/components/ui-provider'
+import UIProvider from '#/providers/ui'
 
-export interface RootRouteContext {
-	store: ReturnType<typeof getDefaultStore>
-	queryClient: QueryClient
-}
+// biome-ignore lint/suspicious/noEmptyInterface: <explanation>
+export interface RootRouteContext {}
 
 export const Route = createRootRoute({
 	component: RootLayout,

@@ -1,0 +1,99 @@
+{
+	"npm.packageManager": "bun",
+	"biome.enabled": true,
+	"biome.rename": true,
+	"biome.searchInPath": false,
+	"editor.codeActionsOnSave": [
+		"source.removeUnusedImports",
+		"source.addMissingImports.ts",
+		"source.biome",
+		"source.organizeImports.biome",
+		"fixAll"
+	],
+	"editor.formatOnSave": true,
+	"editor.formatOnPaste": false,
+	"editor.tabSize": 2,
+	"editor.insertSpaces": false,
+	"editor.quickSuggestions": {
+		"other": "on",
+		"comments": "off",
+		"strings": "on"
+	},
+	"tailwindCSS.validate": true,
+	"tailwindCSS.classFunctions": ["cva", "cn", "twMerge"],
+	"tailwindCSS.experimental.classRegex": [
+		["(?<=cva\\([\\s\\S]*?)[\"']([^\"']+)[\"']"],
+		["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*)[\"'`]"],
+		["cn\\(\\s*[\"'`]([^\"'`]*)[\"'`]\\s*,\\s*\\{[^}]*\\}\\)", "\\1"],
+		["(\\w+)ClassName\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]", "\\2"],
+		["classNames\\s*=\\s*\\{\\{([^}]*)\\}\\}", "[\"'`]([^\"'`]*)[\"'`]"],
+		["className\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]", "\\1"],
+		["className\\s*=\\s*\\{([^}]*)\\}", "[\"'`]([^\"'`]*)[\"'`]"]
+	],
+	"typescript.preferences.importModuleSpecifierEnding": "minimal",
+	"typescript.preferences.includePackageJsonAutoImports": "on",
+	"typescript.enablePromptUseWorkspaceTsdk": true,
+	"typescript.preferences.preferTypeOnlyAutoImports": true,
+	"typescript.preferences.autoImportSpecifierExcludeRegexes": [
+		"assert",
+		"console",
+		"node:console",
+		"node:process",
+		"node:stream/consumers",
+		"node:test",
+		"node:vm",
+		"process",
+		"stream",
+		"stream/consumers",
+		"vm",
+		"net",
+		"tls"
+	],
+	"files.watcherExclude": {
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/.hg/store/**": true,
+		"**/src-tauri/target/**": true
+	},
+	"files.associations": {
+		"*.css": "tailwindcss",
+		"*.sql": "sql"
+	},
+	"files.exclude": {
+		"src-tauri/target": true
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[javascriptreact]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[json]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[typescriptreact]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[html]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[css]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[scss]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"rust-analyzer.restartServerOnConfigChange": true,
+	"rust-analyzer.linkedProjects": ["src-tauri/Cargo.toml"],
+	"rust-analyzer.server.extraEnv": {
+		"CARGO_TARGET_DIR": "${workspaceFolder}/src-tauri/target/analyzer"
+	},
+	"rust-analyzer.cargo.targetDir": "${workspaceFolder}/src-tauri/target/analyzer",
+	"typescript.tsdk": "node_modules/typescript/lib"
+}

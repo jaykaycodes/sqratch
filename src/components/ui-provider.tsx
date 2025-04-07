@@ -1,9 +1,9 @@
 import React from 'react'
 
-import { useAtom } from 'jotai'
+import { Show } from '@legendapp/state/react'
 import { useHotkeys } from 'react-hotkeys-hook'
 
-import { devModeAtom } from '#/stores'
+import store$ from '#/store'
 
 import { SidebarProvider } from './ui/sidebar'
 import { Toaster } from './ui/sonner'
@@ -18,23 +18,18 @@ const TanStackRouterDevtools = import.meta.env.PROD
 		)
 
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
-	const [isDev, setIsDev] = useAtom(devModeAtom)
 	useHotkeys(
 		'shift+meta+.',
-		() => {
-			setIsDev(!isDev)
-		},
+		() => store$.devMode.set(!store$.devMode.get()),
 		{ preventDefault: true },
-		[isDev],
+		[],
 	)
 
 	return (
 		<TooltipProvider>
-			{isDev && (
-				<React.Suspense>
-					<TanStackRouterDevtools />
-				</React.Suspense>
-			)}
+			<Show if={store$.devMode} wrap={React.Suspense}>
+				<TanStackRouterDevtools />
+			</Show>
 
 			<SidebarProvider>{children}</SidebarProvider>
 			<Toaster />

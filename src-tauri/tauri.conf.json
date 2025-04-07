@@ -19,7 +19,10 @@
 		"active": true,
 		"targets": "all",
 		"category": "DeveloperTool",
-		"licenseFile": "../LICENSE"
+		"licenseFile": "../LICENSE",
+		"macOS": {
+			"minimumSystemVersion": "14.6"
+		}
 	},
 	"plugins": {
 		"fs": {

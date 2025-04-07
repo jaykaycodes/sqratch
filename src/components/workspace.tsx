@@ -3,7 +3,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '#/componen
 function Workspace() {
 	return (
 		<ResizablePanelGroup
-			className="min-h-[200px] max-w-md rounded-lg border md:min-w-[450px]"
+			className="max-w-md rounded-lg border md:min-w-[450px]"
 			direction="horizontal"
 		>
 			<ResizablePanel defaultSize={25}>

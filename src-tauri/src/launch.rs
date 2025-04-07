@@ -6,11 +6,12 @@ use std::fmt::Debug;
 use tauri::{AppHandle, Manager, WebviewWindow, Window};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
+use crate::constants::{
+    create_launcher_window_config, create_project_window_config, APP_NAME, LAUNCHER_LABEL,
+};
 use crate::errors::AppError;
 use crate::projects::{parse_project_arg, ProjectId};
 use crate::state::{cleanup_window_state, init_state_for_project};
-
-pub const LAUNCHER_LABEL: &str = "launcher";
 
 #[derive(Parser, Debug, Default)]
 #[command(version, about)]
@@ -49,7 +50,7 @@ pub fn launch_instance(app: &AppHandle, args: Vec<String>, cwd: &str) {
         app.dialog()
             .message(format!("Failed to open project: {}", e))
             .kind(MessageDialogKind::Error)
-            .title("Sqratch")
+            .title(APP_NAME)
             .buttons(MessageDialogButtons::Ok)
             .show(|_| {});
     })
@@ -64,7 +65,7 @@ pub fn launch_app(app: &AppHandle) {
         app.dialog()
             .message(format!("Failed to open: {}", e))
             .kind(MessageDialogKind::Error)
-            .title("Sqratch")
+            .title(APP_NAME)
             .buttons(MessageDialogButtons::Ok)
             .blocking_show();
         app.exit(1);
@@ -92,13 +93,8 @@ fn open_project_window(app: &AppHandle, project_id: &ProjectId) -> Result<(), Ap
 
     init_state_for_project(app, project_id)?;
 
-    // Create window using Tauri v2 API
-    let window_config = tauri::WebviewWindowBuilder::new(
-        app,
-        project_id.to_window_label(),
-        tauri::WebviewUrl::App("project".into()),
-    )
-    .title(project_id.display_name());
+    let window_config =
+        create_project_window_config(app, project_id.to_window_label(), project_id.display_name());
 
     let _window = window_config.build().map_err(|e| e.to_string())?;
 
@@ -114,11 +110,7 @@ fn open_launcher_window(app: &AppHandle) -> Result<(), AppError> {
         return Ok(());
     }
 
-    // Create the launcher window using Tauri v2 API
-    let window_config =
-        tauri::WebviewWindowBuilder::new(app, LAUNCHER_LABEL, tauri::WebviewUrl::App("".into()))
-            .title("sqratch");
-
+    let window_config = create_launcher_window_config(app);
     let _launcher = window_config.build().map_err(|e| e.to_string())?;
 
     Ok(())

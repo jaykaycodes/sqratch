@@ -48,14 +48,14 @@
 			},
 			"suspicious": { "noExplicitAny": "warn" },
 			"nursery": {
-				"useSortedClasses": {
-					"fix": "safe",
-					"level": "info",
-					"options": {
-						"attributes": ["className"],
-						"functions": ["cva", "cx", "cn"]
-					}
-				},
+				// "useSortedClasses": {
+				// 	"fix": "safe",
+				// 	"level": "info",
+				// 	"options": {
+				// 		"attributes": ["className"],
+				// 		"functions": ["cva", "cx", "cn"]
+				// 	}
+				// },
 				"useParseIntRadix": "info",
 				"noEnum": "error",
 				"noProcessEnv": "error",
