@@ -262,6 +262,50 @@ pub struct FunctionInfo {
     pub definition: Option<String>,
 }
 
+/// Type of database entity
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
+pub enum EntityType {
+    Table,
+    View,
+    Function,
+    Procedure,
+    Sequence,
+    MaterializedView,
+    Extension,
+    Index,
+    ForeignTable,
+    Type,
+    Trigger,
+    Constraint,
+    Schema,
+}
+
+/// Unified entity information that can represent tables, views, functions, etc.
+#[taurpc::ipc_type]
+#[derive(Debug)]
+pub struct EntityInfo {
+    /// Entity name
+    pub name: String,
+    /// Schema name
+    pub schema: String,
+    /// Entity type
+    pub entity_type: EntityType,
+    /// Entity description/comment
+    pub comment: Option<String>,
+    /// Creation/modification timestamp
+    pub last_modified: Option<u64>,
+    /// Entity size in bytes if applicable
+    pub size_bytes: Option<u64>,
+    /// Whether this entity is a system object
+    pub is_system: bool,
+    /// Table-specific info (only for tables)
+    pub table_info: Option<TableInfo>,
+    /// View-specific info (only for views)
+    pub view_info: Option<ViewInfo>,
+    /// Function-specific info (only for functions)
+    pub function_info: Option<FunctionInfo>,
+}
+
 /// Schema information with detailed metadata
 #[taurpc::ipc_type]
 #[derive(Debug)]

@@ -11,8 +11,8 @@ use crate::db::{
     errors::{DbError, DbResult},
     types::{
         ColumnDefinition, ColumnInfo, ColumnTypeCategory, ConstraintInfo, ConstraintType,
-        ForeignKeyReference, FunctionInfo, IndexInfo, QueryResult, Row, SchemaInfo, TableInfo,
-        ViewInfo,
+        EntityInfo, EntityType, ForeignKeyReference, FunctionInfo, IndexInfo, QueryResult, Row,
+        TableInfo, ViewInfo,
     },
 };
 
@@ -176,14 +176,165 @@ impl PostgresClient {
         Ok(indices)
     }
 
-    async fn get_views(&self) -> DbResult<Vec<ViewInfo>> {
+    async fn get_tables_info(&self) -> DbResult<Vec<TableInfo>> {
+        let pool = self.get_pool()?;
+
+        let sql = r#"
+            SELECT
+                n.nspname as schema_name,
+                c.relname as table_name,
+                a.attname as column_name,
+                t.typname as data_type,
+                a.attnotnull as not_null,
+                a.attnum as ordinal_position,
+                pg_get_expr(d.adbin, d.adrelid) as default_value,
+                col_description(c.oid, a.attnum) as description,
+                format_type(a.atttypid, a.atttypmod) as full_data_type,
+                EXISTS (
+                    SELECT 1 FROM pg_index i
+                    WHERE i.indrelid = c.oid
+                    AND i.indisprimary
+                    AND a.attnum = ANY(i.indkey)
+                ) as is_primary,
+                EXISTS (
+                    SELECT 1 FROM pg_index i
+                    WHERE i.indrelid = c.oid
+                    AND a.attnum = ANY(i.indkey)
+                ) as is_indexed,
+                EXISTS (
+                    SELECT 1 FROM pg_index i
+                    WHERE i.indrelid = c.oid
+                    AND i.indisunique
+                    AND a.attnum = ANY(i.indkey)
+                ) as is_unique,
+                pg_get_serial_sequence(c.relname::text, a.attname::text) IS NOT NULL as is_serial
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_attribute a ON a.attrelid = c.oid
+            JOIN pg_type t ON t.oid = a.atttypid
+            LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+            WHERE c.relkind = 'r'
+            AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+            ORDER BY n.nspname, c.relname, a.attnum
+        "#;
+
+        let rows = sqlx::query(sql).fetch_all(pool).await?;
+
+        let mut tables = Vec::new();
+        let mut current_schema = String::new();
+        let mut current_table = String::new();
+        let mut current_columns: Vec<ColumnInfo> = Vec::new();
+
+        for row in rows {
+            let schema_name: String = row.get("schema_name");
+            let table_name: String = row.get("table_name");
+
+            if current_schema != schema_name || current_table != table_name {
+                if !current_table.is_empty() {
+                    let constraints = self
+                        .get_constraints(&current_schema, &current_table)
+                        .await?;
+                    let indices = self.get_indices(&current_schema, &current_table).await?;
+
+                    let primary_key_columns = current_columns
+                        .iter()
+                        .filter(|c| c.primary_key)
+                        .map(|c| c.name.clone())
+                        .collect();
+
+                    tables.push(TableInfo {
+                        name: current_table,
+                        schema: current_schema,
+                        columns: current_columns,
+                        constraints,
+                        indices,
+                        primary_key_columns,
+                        row_count_estimate: None,
+                        size_bytes: None,
+                        comment: None,
+                        last_modified: None,
+                    });
+                }
+                current_schema = schema_name;
+                current_table = table_name;
+                current_columns = Vec::new();
+            }
+
+            let column_name: String = row.get("column_name");
+            let data_type: String = row.get("data_type");
+            let not_null: bool = row.get("not_null");
+            let ordinal_position: i32 = row.get("ordinal_position");
+            let default_value: Option<String> = row.get("default_value");
+            let description: Option<String> = row.get("description");
+            let full_data_type: String = row.get("full_data_type");
+            let is_primary: bool = row.get("is_primary");
+            let is_indexed: bool = row.get("is_indexed");
+            let is_unique: bool = row.get("is_unique");
+            let is_serial: bool = row.get("is_serial");
+
+            current_columns.push(ColumnInfo {
+                name: column_name,
+                data_type: full_data_type.clone(),
+                type_category: Self::map_pg_type_to_category(&data_type),
+                nullable: !not_null,
+                primary_key: is_primary,
+                auto_increment: is_serial,
+                indexed: is_indexed,
+                unique: is_unique,
+                char_max_length: None,
+                numeric_precision: None,
+                numeric_scale: None,
+                default_value,
+                comment: description,
+                position: Some(ordinal_position as u32),
+                foreign_key: None,
+                display_hint: None,
+            });
+        }
+
+        // Add the last table
+        if !current_table.is_empty() {
+            let constraints = self
+                .get_constraints(&current_schema, &current_table)
+                .await?;
+            let indices = self.get_indices(&current_schema, &current_table).await?;
+
+            let primary_key_columns = current_columns
+                .iter()
+                .filter(|c| c.primary_key)
+                .map(|c| c.name.clone())
+                .collect();
+
+            tables.push(TableInfo {
+                name: current_table,
+                schema: current_schema,
+                columns: current_columns,
+                constraints,
+                indices,
+                primary_key_columns,
+                row_count_estimate: None,
+                size_bytes: None,
+                comment: None,
+                last_modified: None,
+            });
+        }
+
+        Ok(tables)
+    }
+
+    async fn get_views_info(&self) -> DbResult<Vec<ViewInfo>> {
         let pool = self.get_pool()?;
 
         let sql = r#"
             SELECT
                 c.relname as name,
                 n.nspname as schema,
-                pg_get_viewdef(c.oid) as definition
+                pg_get_viewdef(c.oid) as definition,
+                obj_description(c.oid, 'pg_class') as description,
+                c.relkind as view_type,
+                c.reltuples as row_estimate
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relkind IN ('v', 'm')
@@ -197,11 +348,69 @@ impl PostgresClient {
             let name: String = row.get("name");
             let schema: String = row.get("schema");
             let definition: String = row.get("definition");
+            let description: Option<String> = row.get("description");
+            let view_type: String = row.get("view_type");
+            let row_estimate: f64 = row.get("row_estimate");
+
+            // Get view columns
+            let columns_sql = r#"
+                SELECT
+                    a.attname as column_name,
+                    t.typname as data_type,
+                    a.attnotnull as not_null,
+                    format_type(a.atttypid, a.atttypmod) as full_data_type,
+                    col_description(a.attrelid, a.attnum) as description,
+                    a.attnum as ordinal_position
+                FROM pg_attribute a
+                JOIN pg_class c ON a.attrelid = c.oid
+                JOIN pg_namespace n ON c.relnamespace = n.oid
+                JOIN pg_type t ON a.atttypid = t.oid
+                WHERE n.nspname = $1
+                AND c.relname = $2
+                AND a.attnum > 0
+                AND NOT a.attisdropped
+                ORDER BY a.attnum
+            "#;
+
+            let column_rows = sqlx::query(columns_sql)
+                .bind(&schema)
+                .bind(&name)
+                .fetch_all(pool)
+                .await?;
+
+            let mut columns = Vec::new();
+            for col_row in column_rows {
+                let column_name: String = col_row.get("column_name");
+                let data_type: String = col_row.get("data_type");
+                let not_null: bool = col_row.get("not_null");
+                let full_data_type: String = col_row.get("full_data_type");
+                let column_description: Option<String> = col_row.get("description");
+                let position: i32 = col_row.get("ordinal_position");
+
+                columns.push(ColumnInfo {
+                    name: column_name,
+                    data_type: full_data_type,
+                    type_category: Self::map_pg_type_to_category(&data_type),
+                    nullable: !not_null,
+                    primary_key: false, // Views don't have primary keys
+                    auto_increment: false,
+                    indexed: false,
+                    unique: false,
+                    char_max_length: None,
+                    numeric_precision: None,
+                    numeric_scale: None,
+                    default_value: None,
+                    comment: column_description,
+                    position: Some(position as u32),
+                    foreign_key: None,
+                    display_hint: None,
+                });
+            }
 
             views.push(ViewInfo {
                 name,
                 schema,
-                columns: Vec::new(), // TODO: Get view columns
+                columns,
                 definition: Some(definition),
             });
         }
@@ -209,7 +418,7 @@ impl PostgresClient {
         Ok(views)
     }
 
-    async fn get_functions(&self) -> DbResult<Vec<FunctionInfo>> {
+    async fn get_functions_info(&self) -> DbResult<Vec<FunctionInfo>> {
         let pool = self.get_pool()?;
 
         let sql = r#"
@@ -218,10 +427,13 @@ impl PostgresClient {
                 n.nspname as schema,
                 pg_get_function_arguments(p.oid) as arguments,
                 pg_get_function_result(p.oid) as return_type,
-                pg_get_functiondef(p.oid) as definition
+                pg_get_functiondef(p.oid) as definition,
+                obj_description(p.oid, 'pg_proc') as description,
+                p.prokind as function_type
             FROM pg_proc p
             JOIN pg_namespace n ON p.pronamespace = n.oid
             WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY n.nspname, p.proname
         "#;
 
         let rows = sqlx::query(sql).fetch_all(pool).await?;
@@ -233,6 +445,7 @@ impl PostgresClient {
             let arguments: String = row.get("arguments");
             let return_type: String = row.get("return_type");
             let definition: String = row.get("definition");
+            let description: Option<String> = row.get("description");
 
             functions.push(FunctionInfo {
                 name,
@@ -397,172 +610,175 @@ impl DatabaseClient for PostgresClient {
         })
     }
 
-    async fn get_tables(&self) -> DbResult<Vec<TableInfo>> {
+    async fn get_entities(&self) -> DbResult<Vec<EntityInfo>> {
         let pool = self.get_pool()?;
+        let mut entities = Vec::new();
 
-        let sql = r#"
+        // Get information about schemas
+        let schemas_sql = r#"
+            SELECT
+                nspname as name,
+                obj_description(oid, 'pg_namespace') as description
+            FROM pg_namespace
+            WHERE nspname NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY nspname
+        "#;
+
+        let schemas = sqlx::query(schemas_sql).fetch_all(pool).await?;
+
+        for schema in schemas {
+            let name: String = schema.get("name");
+            let description: Option<String> = schema.get("description");
+
+            entities.push(EntityInfo {
+                name: name.clone(),
+                schema: "".to_string(), // No parent schema for schemas
+                entity_type: EntityType::Schema,
+                comment: description,
+                last_modified: None,
+                size_bytes: None,
+                is_system: false,
+                table_info: None,
+                view_info: None,
+                function_info: None,
+            });
+        }
+
+        // Get information about tables
+        let tables = self.get_tables_info().await?;
+
+        // Get additional metadata for tables
+        let table_metadata_sql = r#"
             SELECT
                 n.nspname as schema_name,
                 c.relname as table_name,
-                a.attname as column_name,
-                t.typname as data_type,
-                a.attnotnull as not_null,
-                a.attnum as ordinal_position,
-                pg_get_expr(d.adbin, d.adrelid) as default_value,
-                col_description(c.oid, a.attnum) as description,
-                format_type(a.atttypid, a.atttypmod) as full_data_type,
-                EXISTS (
-                    SELECT 1 FROM pg_index i
-                    WHERE i.indrelid = c.oid
-                    AND i.indisprimary
-                    AND a.attnum = ANY(i.indkey)
-                ) as is_primary,
-                EXISTS (
-                    SELECT 1 FROM pg_index i
-                    WHERE i.indrelid = c.oid
-                    AND a.attnum = ANY(i.indkey)
-                ) as is_indexed,
-                EXISTS (
-                    SELECT 1 FROM pg_index i
-                    WHERE i.indrelid = c.oid
-                    AND i.indisunique
-                    AND a.attnum = ANY(i.indkey)
-                ) as is_unique,
-                pg_get_serial_sequence(c.relname::text, a.attname::text) IS NOT NULL as is_serial
+                c.reltuples as row_estimate,
+                pg_total_relation_size(c.oid) as total_bytes,
+                obj_description(c.oid, 'pg_class') as description,
+                EXTRACT(EPOCH FROM age(now(), greatest(pg_stat_get_last_analyze_time(c.oid), pg_stat_get_last_autoanalyze_time(c.oid)))) as last_analyzed
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
-            JOIN pg_attribute a ON a.attrelid = c.oid
-            JOIN pg_type t ON t.oid = a.atttypid
-            LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
             WHERE c.relkind = 'r'
             AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-            AND a.attnum > 0
-            AND NOT a.attisdropped
-            ORDER BY n.nspname, c.relname, a.attnum
         "#;
 
-        let rows = sqlx::query(sql).fetch_all(pool).await?;
+        let metadata_rows = sqlx::query(table_metadata_sql).fetch_all(pool).await?;
+        let mut metadata_map = HashMap::new();
 
-        let mut tables = Vec::new();
-        let mut current_schema = String::new();
-        let mut current_table = String::new();
-        let mut current_columns: Vec<ColumnInfo> = Vec::new();
+        for row in metadata_rows {
+            let schema: String = row.get("schema_name");
+            let name: String = row.get("table_name");
+            let key = format!("{}.{}", schema, name);
 
-        for row in rows {
-            let schema_name: String = row.get("schema_name");
-            let table_name: String = row.get("table_name");
-
-            if current_schema != schema_name || current_table != table_name {
-                if !current_table.is_empty() {
-                    let constraints = self
-                        .get_constraints(&current_schema, &current_table)
-                        .await?;
-                    let indices = self.get_indices(&current_schema, &current_table).await?;
-
-                    let primary_key_columns = current_columns
-                        .iter()
-                        .filter(|c| c.primary_key)
-                        .map(|c| c.name.clone())
-                        .collect();
-
-                    tables.push(TableInfo {
-                        name: current_table,
-                        schema: current_schema,
-                        columns: current_columns,
-                        constraints,
-                        indices,
-                        primary_key_columns,
-                        row_count_estimate: None,
-                        size_bytes: None,
-                        comment: None,
-                        last_modified: None,
-                    });
-                }
-                current_schema = schema_name;
-                current_table = table_name;
-                current_columns = Vec::new();
-            }
-
-            let column_name: String = row.get("column_name");
-            let data_type: String = row.get("data_type");
-            let not_null: bool = row.get("not_null");
-            let ordinal_position: i32 = row.get("ordinal_position");
-            let default_value: Option<String> = row.get("default_value");
+            let row_estimate: f64 = row.get("row_estimate");
+            let total_bytes: i64 = row.get("total_bytes");
             let description: Option<String> = row.get("description");
-            let full_data_type: String = row.get("full_data_type");
-            let is_primary: bool = row.get("is_primary");
-            let is_indexed: bool = row.get("is_indexed");
-            let is_unique: bool = row.get("is_unique");
-            let is_serial: bool = row.get("is_serial");
+            let last_analyzed: Option<f64> = row.get("last_analyzed");
 
-            current_columns.push(ColumnInfo {
-                name: column_name,
-                data_type: full_data_type.clone(),
-                type_category: Self::map_pg_type_to_category(&data_type),
-                nullable: !not_null,
-                primary_key: is_primary,
-                auto_increment: is_serial,
-                indexed: is_indexed,
-                unique: is_unique,
-                char_max_length: None,
-                numeric_precision: None,
-                numeric_scale: None,
-                default_value,
-                comment: description,
-                position: Some(ordinal_position as u32),
-                foreign_key: None,
-                display_hint: None,
+            metadata_map.insert(key, (row_estimate, total_bytes, description, last_analyzed));
+        }
+
+        for table in tables {
+            let key = format!("{}.{}", table.schema, table.name);
+            let (row_estimate, size_bytes, description, last_analyzed) = metadata_map
+                .get(&key)
+                .map_or((0.0, 0, None, None), |(r, s, d, l)| (*r, *s, d.clone(), *l));
+
+            entities.push(EntityInfo {
+                name: table.name.clone(),
+                schema: table.schema.clone(),
+                entity_type: EntityType::Table,
+                comment: description.clone(),
+                last_modified: last_analyzed.map(|t| t as u64),
+                size_bytes: Some(size_bytes as u64),
+                is_system: false,
+                table_info: Some(TableInfo {
+                    name: table.name,
+                    schema: table.schema,
+                    columns: table.columns,
+                    constraints: table.constraints,
+                    indices: table.indices,
+                    primary_key_columns: table.primary_key_columns,
+                    row_count_estimate: Some(row_estimate as u64),
+                    size_bytes: Some(size_bytes as u64),
+                    comment: description.clone(),
+                    last_modified: last_analyzed.map(|t| t as u64),
+                }),
+                view_info: None,
+                function_info: None,
             });
         }
 
-        // Don't forget to add the last table
-        if !current_table.is_empty() {
-            let constraints = self
-                .get_constraints(&current_schema, &current_table)
-                .await?;
-            let indices = self.get_indices(&current_schema, &current_table).await?;
+        // Get information about views
+        let views = self.get_views_info().await?;
 
-            let primary_key_columns = current_columns
-                .iter()
-                .filter(|c| c.primary_key)
-                .map(|c| c.name.clone())
-                .collect();
+        for view in views {
+            let entity_type = if view
+                .definition
+                .as_ref()
+                .unwrap()
+                .contains("MATERIALIZED VIEW")
+            {
+                EntityType::MaterializedView
+            } else {
+                EntityType::View
+            };
 
-            tables.push(TableInfo {
-                name: current_table,
-                schema: current_schema,
-                columns: current_columns,
-                constraints,
-                indices,
-                primary_key_columns,
-                row_count_estimate: None,
-                size_bytes: None,
+            entities.push(EntityInfo {
+                name: view.name.clone(),
+                schema: view.schema.clone(),
+                entity_type,
                 comment: None,
                 last_modified: None,
+                size_bytes: None,
+                is_system: false,
+                table_info: None,
+                view_info: Some(ViewInfo {
+                    name: view.name,
+                    schema: view.schema,
+                    columns: view.columns,
+                    definition: view.definition,
+                }),
+                function_info: None,
             });
         }
 
-        Ok(tables)
-    }
+        // Get information about functions
+        let functions = self.get_functions_info().await?;
 
-    async fn get_schema_info(&self) -> DbResult<SchemaInfo> {
-        let tables = self.get_tables().await?;
-        let views = self.get_views().await?;
-        let functions = self.get_functions().await?;
+        for function in functions {
+            // Determine if this is a function or procedure based on the definition
+            let is_procedure = function
+                .definition
+                .as_ref()
+                .map_or(false, |def| def.contains("PROCEDURE"));
 
-        // Get all constraints across all tables
-        let mut all_constraints = Vec::new();
-        for table in &tables {
-            let constraints = self.get_constraints(&table.schema, &table.name).await?;
-            all_constraints.extend(constraints);
+            let entity_type = if is_procedure {
+                EntityType::Procedure
+            } else {
+                EntityType::Function
+            };
+
+            entities.push(EntityInfo {
+                name: function.name.clone(),
+                schema: function.schema.clone(),
+                entity_type,
+                comment: None,
+                last_modified: None,
+                size_bytes: None,
+                is_system: false,
+                table_info: None,
+                view_info: None,
+                function_info: Some(FunctionInfo {
+                    name: function.name,
+                    schema: function.schema,
+                    arguments: function.arguments,
+                    return_type: function.return_type,
+                    definition: function.definition,
+                }),
+            });
         }
 
-        Ok(SchemaInfo {
-            name: "public".to_string(),
-            tables,
-            views,
-            functions,
-            constraints: all_constraints,
-        })
+        Ok(entities)
     }
 }

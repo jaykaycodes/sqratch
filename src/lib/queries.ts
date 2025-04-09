@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 
 import { createTauRPCProxy } from './taurpc'
 
-const qc = new QueryClient({
+const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
 			staleTime: 30 * 1000,
@@ -23,6 +23,6 @@ const qc = new QueryClient({
 	},
 })
 
-export default qc
+export default queryClient
 
 export const taurpc = createTauRPCProxy()

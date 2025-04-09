@@ -9,6 +9,7 @@ mod launch;
 mod plugins;
 mod projects;
 mod state;
+mod windows;
 
 use std::env;
 

@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@custom-variant dark (&:is(.dark *));
+@import "./theme.css";
+
+:root {
+  --titlebar-height: 28px;
+  --main-height: calc(100vh - var(--titlebar-height));
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  * {
+    @apply cursor-default select-none;
+  }
+
+  input,
+  textarea,
+  p,
+  code,
+  pre,
+  .selectable {
+    @apply select-text;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

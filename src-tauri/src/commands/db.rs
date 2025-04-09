@@ -1,7 +1,7 @@
 use tauri::{Runtime, Window};
 use taurpc;
 
-use crate::db::types::{QueryResult, SchemaInfo, TableInfo};
+use crate::db::types::{EntityInfo, QueryResult};
 use crate::errors::AppError;
 use crate::state::get_window_client;
 
@@ -28,11 +28,8 @@ pub trait DbApi {
         query: String,
     ) -> Result<QueryResult, AppError>;
 
-    // Get schema information for the connection
-    async fn get_schema_info<R: Runtime>(window: Window<R>) -> Result<SchemaInfo, AppError>;
-
-    // Get tables for the connection
-    async fn get_tables<R: Runtime>(window: Window<R>) -> Result<Vec<TableInfo>, AppError>;
+    // Get all entities (tables, views, functions, etc.) from the database
+    async fn get_entities<R: Runtime>(window: Window<R>) -> Result<Vec<EntityInfo>, AppError>;
 }
 
 #[derive(Clone)]
@@ -83,15 +80,12 @@ impl DbApi for DbApiImpl {
         Ok(guard.execute_query(&query).await?)
     }
 
-    async fn get_schema_info<R: Runtime>(self, window: Window<R>) -> Result<SchemaInfo, AppError> {
+    async fn get_entities<R: Runtime>(
+        self,
+        window: Window<R>,
+    ) -> Result<Vec<EntityInfo>, AppError> {
         let client = get_window_client(&window)?;
         let guard = client.lock().await;
-        Ok(guard.get_schema_info().await?)
-    }
-
-    async fn get_tables<R: Runtime>(self, window: Window<R>) -> Result<Vec<TableInfo>, AppError> {
-        let client = get_window_client(&window)?;
-        let guard = client.lock().await;
-        Ok(guard.get_tables().await?)
+        Ok(guard.get_entities().await?)
     }
 }

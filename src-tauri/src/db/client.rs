@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 use url::Url;
 
 use crate::db::errors::{DbError, DbResult};
-use crate::db::types::{QueryResult, SchemaInfo, TableInfo};
+use crate::db::types::{EntityInfo, EntityType, QueryResult};
 
 /// Core database client interface for all database operations
 #[async_trait]
@@ -32,11 +32,8 @@ pub trait DatabaseClient: Send + Sync {
     /// Execute a raw SQL query
     async fn execute_query(&self, sql: &str) -> DbResult<QueryResult>;
 
-    /// Get information about all tables with detailed metadata
-    async fn get_tables(&self) -> DbResult<Vec<TableInfo>>;
-
-    /// Get schema information including tables, views, functions and their structure
-    async fn get_schema_info(&self) -> DbResult<SchemaInfo>;
+    /// Get all database entities (tables, views, functions, etc.) with their metadata
+    async fn get_entities(&self) -> DbResult<Vec<EntityInfo>>;
 }
 pub type DatabaseClientRef = Arc<Mutex<dyn DatabaseClient>>;
 

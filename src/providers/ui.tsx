@@ -1,16 +1,13 @@
 import React from 'react'
 
 import { observable } from '@legendapp/state'
-import { enableReactComponents } from '@legendapp/state/config/enableReactComponents'
 import { enableReactTracking } from '@legendapp/state/config/enableReactTracking'
 import { Show } from '@legendapp/state/react'
+import { ThemeProvider } from 'next-themes'
 import { useHotkeys } from 'react-hotkeys-hook'
 
-import { SidebarProvider } from '#/components/ui/sidebar'
 import { Toaster } from '#/components/ui/sonner'
 import { TooltipProvider } from '#/components/ui/tooltip'
-
-enableReactComponents()
 
 // Enable React tracking for debugging
 enableReactTracking({
@@ -21,13 +18,22 @@ enableReactTracking({
 const TanStackRouterDevtools = import.meta.env.PROD
 	? () => null
 	: React.lazy(() =>
-			import('@tanstack/router-devtools').then((res) => ({
+			import('@tanstack/react-router-devtools').then((res) => ({
 				default: res.TanStackRouterDevtools,
+			})),
+		)
+
+const TanStackQueryDevtools = import.meta.env.PROD
+	? () => null
+	: React.lazy(() =>
+			import('@tanstack/react-query-devtools').then((res) => ({
+				default: res.ReactQueryDevtools,
 			})),
 		)
 
 export const ui$ = observable({
 	devMode: false,
+	windowActions: null as React.ReactNode | null,
 })
 
 const UIProvider = ({ children }: { children: React.ReactNode }) => {
@@ -39,14 +45,18 @@ const UIProvider = ({ children }: { children: React.ReactNode }) => {
 	)
 
 	return (
-		<TooltipProvider>
-			<Show if={ui$.devMode} wrap={React.Suspense}>
-				<TanStackRouterDevtools />
-			</Show>
+		<ThemeProvider attribute="class">
+			<TooltipProvider>
+				<Show if={ui$.devMode} wrap={React.Suspense}>
+					<TanStackRouterDevtools />
+					<TanStackQueryDevtools />
+				</Show>
 
-			<SidebarProvider>{children}</SidebarProvider>
-			<Toaster />
-		</TooltipProvider>
+				{children}
+
+				<Toaster />
+			</TooltipProvider>
+		</ThemeProvider>
 	)
 }
 

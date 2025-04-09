@@ -1,7 +1,7 @@
 {
 	"npm.packageManager": "bun",
-	"biome.enabled": true,
-	"biome.rename": true,
+	"biome.enabled": false,
+	"biome.rename": false,
 	"biome.searchInPath": false,
 	"editor.codeActionsOnSave": [
 		"source.removeUnusedImports",
@@ -60,7 +60,17 @@
 		"*.sql": "sql"
 	},
 	"files.exclude": {
-		"src-tauri/target": true
+		"**/src-tauri/target": true
+	},
+	"explorer.fileNesting.enabled": true,
+	"explorer.fileNesting.patterns": {
+		"*.ts": "${capture}.js",
+		"*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
+		"*.jsx": "${capture}.js",
+		"*.tsx": "${capture}.ts, ${capture}.*.tsx",
+		"tsconfig.json": "tsconfig.*.json",
+		"package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb",
+		"Cargo.toml": "Cargo.lock"
 	},
 	"[javascript]": {
 		"editor.defaultFormatter": "biomejs.biome"

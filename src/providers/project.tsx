@@ -1,23 +1,39 @@
 import { observable } from '@legendapp/state'
 import { useMount } from '@legendapp/state/react'
+import { syncedQuery } from '@legendapp/state/sync-plugins/tanstack-query'
 
-import { taurpc } from '#/lib/queries'
+import queryClient, { taurpc } from '#/lib/queries'
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'disconnecting'
 
 const REFRESH_INTERVAL = 30_000
 
-// Create project state with computed and nested observables
+const connectionString = syncedQuery({
+	queryClient,
+	query: {
+		queryKey: ['connectionString'],
+		queryFn: () => taurpc.db.get_connection_string(),
+	},
+})
+
+const entities = syncedQuery({
+	queryClient,
+	query: {
+		queryKey: ['entities'],
+		queryFn: () => taurpc.db.get_entities(),
+	},
+})
+
 const project$ = observable({
 	name: '',
 	status: 'disconnected' as ConnectionStatus,
-	// Computed value - gets loaded when accessed
-	connectionString: () => taurpc.db.get_connection_string(),
+	connectionString,
+	entities,
 })
 
 export default project$
 
-export function useProjectInit() {
+export function useInitProject() {
 	// connect to the db
 	useMount(() => {
 		project$.status.set('connecting')

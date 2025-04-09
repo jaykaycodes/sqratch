@@ -6,12 +6,11 @@ use std::fmt::Debug;
 use tauri::{AppHandle, Manager, WebviewWindow, Window};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
-use crate::constants::{
-    create_launcher_window_config, create_project_window_config, APP_NAME, LAUNCHER_LABEL,
-};
+use crate::constants::{APP_NAME, LAUNCHER_LABEL};
 use crate::errors::AppError;
 use crate::projects::{parse_project_arg, ProjectId};
 use crate::state::{cleanup_window_state, init_state_for_project};
+use crate::windows::{build_launcher_window, build_project_window};
 
 #[derive(Parser, Debug, Default)]
 #[command(version, about)]
@@ -93,10 +92,8 @@ fn open_project_window(app: &AppHandle, project_id: &ProjectId) -> Result<(), Ap
 
     init_state_for_project(app, project_id)?;
 
-    let window_config =
-        create_project_window_config(app, project_id.to_window_label(), project_id.display_name());
-
-    let _window = window_config.build().map_err(|e| e.to_string())?;
+    build_project_window(app, project_id.to_window_label(), project_id.display_name())
+        .map_err(|e| AppError::Other(e.to_string()))?;
 
     Ok(())
 }
@@ -110,8 +107,7 @@ fn open_launcher_window(app: &AppHandle) -> Result<(), AppError> {
         return Ok(());
     }
 
-    let window_config = create_launcher_window_config(app);
-    let _launcher = window_config.build().map_err(|e| e.to_string())?;
+    build_launcher_window(app).map_err(|e| AppError::Other(e.to_string()))?;
 
     Ok(())
 }
