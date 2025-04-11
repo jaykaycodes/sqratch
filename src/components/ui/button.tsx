@@ -33,26 +33,43 @@ const buttonVariants = cva(
 )
 
 type ButtonVariantProps = VariantProps<typeof buttonVariants>
+type ButtonButtonProps = ButtonVariantProps & React.ComponentProps<'button'>
+type ButtonDivProps = ButtonVariantProps & React.ComponentProps<'div'> & { asDiv: true }
+type ButtonChildProps = ButtonVariantProps & React.ComponentProps<typeof Slot> & { asChild: true }
 
 function Button({
-	className,
 	variant,
 	size,
-	asChild = false,
-	...props
-}: React.ComponentProps<'button'> &
-	ButtonVariantProps & {
-		asChild?: boolean
-	}) {
-	const Comp = asChild ? Slot : 'button'
+	...rest
+}: ButtonButtonProps | ButtonDivProps | ButtonChildProps) {
+	const className = cn(buttonVariants({ variant, size, className: rest.className }))
 
-	return (
-		<Comp
-			className={cn(buttonVariants({ variant, size, className }))}
-			data-slot="button"
-			{...props}
-		/>
-	)
+	if ('asDiv' in rest) {
+		const { asDiv, ...props } = rest
+		return (
+			<div
+				onKeyUp={(e) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault()
+						// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+						rest.onClick?.(e as any)
+					}
+				}}
+				role="button"
+				tabIndex={0}
+				{...props}
+				className={className}
+			/>
+		)
+	}
+
+
+	if ('asChild' in rest) {
+		const { asChild, ...props } = rest
+		return <Slot data-slot="button" {...props} className={className} />
+	}
+
+	return <button {...rest} className={className} />
 }
 
 export { Button, type ButtonVariantProps, buttonVariants }

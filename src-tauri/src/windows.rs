@@ -1,4 +1,4 @@
-use tauri::{AppHandle, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder};
 
 use crate::constants::{APP_NAME, LAUNCHER_LABEL, LAUNCHER_URL, PROJECT_URL};
 

@@ -1,5 +1,9 @@
+import { QueryClient } from '@tanstack/react-query'
 import { type ClassValue, clsx } from 'clsx'
+import { toast } from 'sonner'
 import { twMerge } from 'tailwind-merge'
+
+import { createTauRPCProxy } from './taurpc'
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs))
@@ -19,4 +23,21 @@ export function parseConnectionString(connectionString: string) {
 	} catch (error) {
 		throw new Error('Invalid connection string format')
 	}
+}
+
+export const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: {
+			retry: 1,
+			retryDelay: (i) => Math.min(1000 * 2 ** i, 30_000),
+			experimental_prefetchInRender: true,
+		},
+	},
+})
+
+export const taurpc = createTauRPCProxy()
+
+export function copyToClipboard(text: string) {
+	navigator.clipboard.writeText(text)
+	toast.success('Copied to clipboard')
 }

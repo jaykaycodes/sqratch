@@ -244,6 +244,12 @@ pub struct ViewInfo {
     pub columns: Vec<ColumnInfo>,
     /// View definition
     pub definition: Option<String>,
+    /// View comment/description
+    pub comment: Option<String>,
+    /// Whether this is a materialized view
+    pub materialized: bool,
+    /// View row count estimate
+    pub row_estimate: f64,
 }
 
 /// Function information
@@ -262,62 +268,34 @@ pub struct FunctionInfo {
     pub definition: Option<String>,
 }
 
-/// Type of database entity
+/// Entities that can live on a schema
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
-pub enum EntityType {
+pub enum SchemaEntityType {
     Table,
+    ForeignTable,
     View,
+    MaterializedView,
     Function,
     Procedure,
     Sequence,
-    MaterializedView,
-    Extension,
-    Index,
-    ForeignTable,
     Type,
-    Trigger,
-    Constraint,
-    Schema,
 }
 
-/// Unified entity information that can represent tables, views, functions, etc.
+/// Schema entity
 #[taurpc::ipc_type]
 #[derive(Debug)]
-pub struct EntityInfo {
-    /// Entity name
+pub struct SchemaEntity {
+    pub id: String,
     pub name: String,
-    /// Schema name
     pub schema: String,
-    /// Entity type
-    pub entity_type: EntityType,
-    /// Entity description/comment
-    pub comment: Option<String>,
-    /// Creation/modification timestamp
-    pub last_modified: Option<u64>,
-    /// Entity size in bytes if applicable
-    pub size_bytes: Option<u64>,
-    /// Whether this entity is a system object
-    pub is_system: bool,
-    /// Table-specific info (only for tables)
-    pub table_info: Option<TableInfo>,
-    /// View-specific info (only for views)
-    pub view_info: Option<ViewInfo>,
-    /// Function-specific info (only for functions)
-    pub function_info: Option<FunctionInfo>,
+    pub entity_type: SchemaEntityType,
 }
 
 /// Schema information with detailed metadata
 #[taurpc::ipc_type]
 #[derive(Debug)]
 pub struct SchemaInfo {
-    /// Schema name
+    pub id: String,
     pub name: String,
-    /// Tables in this schema
-    pub tables: Vec<TableInfo>,
-    /// Views in this schema
-    pub views: Vec<ViewInfo>,
-    /// Functions in this schema
-    pub functions: Vec<FunctionInfo>,
-    /// Schema constraints
-    pub constraints: Vec<ConstraintInfo>,
+    pub entities: Vec<SchemaEntity>,
 }

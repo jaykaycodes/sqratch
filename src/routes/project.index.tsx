@@ -1,6 +1,5 @@
 import React from 'react'
 
-import { use$ } from '@legendapp/state/react'
 import { createFileRoute } from '@tanstack/react-router'
 
 import Icons from '#/components/icons'
@@ -9,15 +8,12 @@ import { Card } from '#/components/ui/card'
 import { ResizableHandle, ResizablePanel } from '#/components/ui/resizable'
 import { ScrollArea } from '#/components/ui/scroll-area'
 import { Separator } from '#/components/ui/separator'
-import project$ from '#/providers/project'
 
 export const Route = createFileRoute('/project/')({
 	component: () => <ProjectIndex />,
 })
 
 function ProjectIndex() {
-	const status = use$(project$.status)
-	const connString = use$(project$.connectionString)
 	const [showRightPanel, setShowRightPanel] = React.useState(false)
 
 	return (

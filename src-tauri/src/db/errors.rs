@@ -9,17 +9,17 @@ pub enum DbError {
     /// Error executing a query
     Query(String),
     /// Error parsing or preparing a query
-    Parse(String),
+    // Parse(String),
     /// Error with the configuration
     Config(String),
     /// Resource not found
     NotFound(String),
     /// Authentication error
-    Auth(String),
+    // Auth(String),
     /// Operation not supported for this database type
     Unsupported(String),
     /// Transaction error
-    Transaction(String),
+    // Transaction(String),
     /// SQL parsing error
     Parsing(String),
     /// Other error
@@ -31,12 +31,12 @@ impl fmt::Display for DbError {
         match self {
             DbError::Connection(msg) => write!(f, "Database connection error: {}", msg),
             DbError::Query(msg) => write!(f, "Database query error: {}", msg),
-            DbError::Parse(msg) => write!(f, "SQL parse error: {}", msg),
+            // DbError::Parse(msg) => write!(f, "SQL parse error: {}", msg),
             DbError::Config(msg) => write!(f, "Database configuration error: {}", msg),
             DbError::NotFound(msg) => write!(f, "Not found: {}", msg),
-            DbError::Auth(msg) => write!(f, "Authentication error: {}", msg),
+            // DbError::Auth(msg) => write!(f, "Authentication error: {}", msg),
             DbError::Unsupported(msg) => write!(f, "Operation not supported: {}", msg),
-            DbError::Transaction(msg) => write!(f, "Transaction error: {}", msg),
+            // DbError::Transaction(msg) => write!(f, "Transaction error: {}", msg),
             DbError::Parsing(msg) => write!(f, "SQL parsing error: {}", msg),
             DbError::Other(msg) => write!(f, "Database error: {}", msg),
         }
