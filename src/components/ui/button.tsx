@@ -16,6 +16,7 @@ const buttonVariants = cva(
 					'border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
 				secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
 				ghost: 'hover:bg-accent hover:text-accent-foreground',
+				blank: 'justify-normal',
 				link: 'text-primary underline-offset-4 hover:underline',
 			},
 			size: {
@@ -37,12 +38,14 @@ type ButtonButtonProps = ButtonVariantProps & React.ComponentProps<'button'>
 type ButtonDivProps = ButtonVariantProps & React.ComponentProps<'div'> & { asDiv: true }
 type ButtonChildProps = ButtonVariantProps & React.ComponentProps<typeof Slot> & { asChild: true }
 
-function Button({
-	variant,
-	size,
-	...rest
-}: ButtonButtonProps | ButtonDivProps | ButtonChildProps) {
-	const className = cn(buttonVariants({ variant, size, className: rest.className }))
+function Button({ variant, size, ...rest }: ButtonButtonProps | ButtonDivProps | ButtonChildProps) {
+	const className = cn(
+		buttonVariants({
+			variant: 'asDiv' in rest && !variant ? 'blank' : variant,
+			size,
+			className: rest.className,
+		}),
+	)
 
 	if ('asDiv' in rest) {
 		const { asDiv, ...props } = rest
@@ -62,7 +65,6 @@ function Button({
 			/>
 		)
 	}
-
 
 	if ('asChild' in rest) {
 		const { asChild, ...props } = rest

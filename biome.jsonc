@@ -18,7 +18,8 @@
 		"rules": {
 			"a11y": "info",
 			"complexity": {
-				"noStaticOnlyClass": "off"
+				"noStaticOnlyClass": "off",
+				"noBannedTypes": "info"
 			},
 			"correctness": {
 				"useExhaustiveDependencies": {

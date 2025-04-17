@@ -1,60 +1,91 @@
-import type { Observable } from '@legendapp/state'
-import { For, Show, use$ } from '@legendapp/state/react'
+import { observer, use$ } from '@legendapp/state/react'
+import type { ConditionalExcept } from 'type-fest'
 
 import Icons from '#/components/icons'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '#/components/ui/collapsible'
+import { ResizablePanel } from '#/components/ui/resizable'
 import { ScrollArea } from '#/components/ui/scroll-area'
-import { cn } from '#/lib/utils'
+import type { ProjectStore } from '#/providers/project'
 
-import WorkbenchGroupRow, { type WorkbenchGroup } from './group'
-import WorkbenchItemRow, { type WorkbenchItem } from './item'
+import WorkbenchGroupRow from './group'
+import WorkbenchItemRow from './item'
 
-interface WorkbenchSectionProps {
+type AllSectionStates = ConditionalExcept<ProjectStore['workbench'], Function>
+type AnySectionState = AllSectionStates[keyof AllSectionStates]
+
+interface Props {
+	state$: AnySectionState
 	title: string
-	items$: Observable<(WorkbenchItem | WorkbenchGroup)[]>
 	emptyText?: string
-	defaultOpen?: boolean
-	className?: string
 }
 
-export default function WorkbenchSection({
+const collapsedHeightPx = 24
+
+const WorkbenchSection = observer(function WorkbenchSection({
+	state$,
 	title,
-	items$,
 	emptyText = 'No items found',
-	defaultOpen = true,
-	className,
-}: WorkbenchSectionProps) {
-	return (
-		<Collapsible className={cn('border-b', className)} defaultOpen={defaultOpen}>
-			<CollapsibleTrigger asChild>
-				<div className="flex h-6 w-full items-center justify-between px-2 py-0.5 hover:bg-muted/50 cursor-pointer">
-					<span className="font-medium text-xs uppercase">{title}</span>
-					<Icons.ChevronDown className="text-muted-foreground" size={14} />
-				</div>
-			</CollapsibleTrigger>
-			<CollapsibleContent>
-				<ScrollArea className="px-1 py-1" style={{ height: 'var(--section-height, 180px)' }}>
-					<Show else={<Empty text={emptyText} />} if={items$.length}>
-						{() => (
-							<div className="space-y-0.5">
-								<For each={items$} item={Row} />
-							</div>
-						)}
-					</Show>
-				</ScrollArea>
-			</CollapsibleContent>
-		</Collapsible>
-	)
-}
+}: Props) {
+	const open = use$(state$.open)
+	const size = use$(state$.heightPct)
+	const order = use$(state$.order)
+	const items = use$(state$.items)
 
-function Row({ item$ }: { item$: Observable<WorkbenchItem | WorkbenchGroup> }) {
-	const item = use$(item$)
-	return item.type === 'Folder' || item.type === 'Schema' ? (
-		<WorkbenchGroupRow group={item} />
-	) : (
-		<WorkbenchItemRow item={item as WorkbenchItem} />
+	const Icon = open ? Icons.ChevronDown : Icons.ChevronRight
+
+	return (
+		<ResizablePanel
+			defaultSize={open ? size : 0}
+			id={title}
+			maxSize={80}
+			minSize={open ? 10 : 0}
+			order={order}
+			style={
+				open
+					? undefined
+					: {
+							flexGrow: 0,
+							flexBasis: `${collapsedHeightPx}px`,
+						}
+			}
+		>
+			<Collapsible
+				className="overflow-hidden h-full"
+				onOpenChange={(state) => state$.open.set(state)}
+				open={open}
+			>
+				<CollapsibleTrigger asChild>
+					<div
+						className="flex w-full items-center gap-1 px-2 py-1"
+						style={{ height: collapsedHeightPx }}
+					>
+						<Icon className="text-muted-foreground" size={14} />
+						<span className="font-medium text-xs uppercase">{title}</span>
+					</div>
+				</CollapsibleTrigger>
+				<CollapsibleContent className="h-full overflow-hidden">
+					<ScrollArea className="h-full overflow-auto">
+						{items && items.length > 0 ? (
+							<div className="space-y-0.5">
+								{items.map((item) =>
+									item.type === 'Folder' || item.type === 'Schema' ? (
+										<WorkbenchGroupRow group={item} key={item.id} />
+									) : (
+										<WorkbenchItemRow item={item} key={item.id} />
+									),
+								)}
+							</div>
+						) : (
+							<Empty text={emptyText} />
+						)}
+					</ScrollArea>
+				</CollapsibleContent>
+			</Collapsible>
+		</ResizablePanel>
 	)
-}
+})
+
+export default WorkbenchSection
 
 function Empty({ text }: { text: string }) {
 	return (

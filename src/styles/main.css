@@ -6,15 +6,18 @@
 :root {
   --titlebar-height: 28px;
   --main-height: calc(100vh - var(--titlebar-height));
+  --scrollbar-width: 8px;
+  --scrollbar-height: 8px;
+  --scrollbar-track-color: transparent;
+  --scrollbar-thumb-color: var(--border);
+  --scrollbar-thumb-hover-color: var(--muted-foreground);
+
+  overscroll-behavior: none;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
-  }
-
-  * {
-    @apply cursor-default select-none;
+    @apply border-border outline-ring/50 scroll-smooth overscroll-none cursor-default select-none;
   }
 
   input,
@@ -28,5 +31,28 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Custom Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-height);
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track-color);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb-color);
+    border-radius: 0; /* Rectangular scrollbar */
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover-color);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }

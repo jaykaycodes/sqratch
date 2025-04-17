@@ -8,7 +8,7 @@ import { Button } from '#/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '#/components/ui/tooltip'
 import { TooltipProvider } from '#/components/ui/tooltip'
 import { cn, copyToClipboard } from '#/lib/utils'
-import { useDbStore$ } from '#/providers/db'
+import { useProjectStore$ } from '#/providers/project'
 
 export default function StatusBar() {
 	return (
@@ -73,7 +73,7 @@ function StatusBarItem({
 }
 
 function ConnectionStatusItem() {
-	const store$ = useDbStore$()
+	const store$ = useProjectStore$()
 	const status = use$(store$.connectionStatus)
 	const connStr = use$(store$.connectionString)
 

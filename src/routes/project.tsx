@@ -2,7 +2,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '#/components/ui/resizable'
 import { taurpc } from '#/lib/utils'
-import { DbProvider } from '#/providers/db'
+import { ProjectProvider } from '#/providers/project'
 import StatusBar from '#/routes/-project/status-bar'
 
 import ProjectWorkbench from './-project/workbench'
@@ -13,9 +13,9 @@ export const Route = createFileRoute('/project')({
 		const connectionString = Route.useLoaderData()
 
 		return (
-			<DbProvider connectionString={connectionString}>
+			<ProjectProvider connectionString={connectionString}>
 				<ProjectLayout />
-			</DbProvider>
+			</ProjectProvider>
 		)
 	},
 })

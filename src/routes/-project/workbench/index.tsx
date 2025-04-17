@@ -1,59 +1,41 @@
-import { useObservable } from '@legendapp/state/react'
+import { Memo } from '@legendapp/state/react'
 
-import { useSchemasQuery } from '#/providers/db'
-import { favorites$, queries$ } from '#/providers/project'
+import { ResizableHandle, ResizablePanelGroup } from '#/components/ui/resizable'
+import { useProjectStore$ } from '#/providers/project'
 
 import WorkbenchSection from './section'
-import type { WorkbenchSchemaGroup } from './types'
+
+export * from './types'
 
 export default function ProjectWorkbench() {
-	const schemas = useSchemasQuery()
-	const entities$ = useObservable(
-		schemas.data.map(
-			(s) =>
-				({
-					id: s.id,
-					name: s.name,
-					type: 'Schema',
-					items: s.entities.map((e) => ({
-						id: e.id,
-						name: e.name,
-						type: e.entity_type,
-					})),
-				}) satisfies WorkbenchSchemaGroup,
-		),
-		[schemas.data],
-	)
-	console.log('got data', schemas.status, schemas.data)
+	const project$ = useProjectStore$()
 
 	return (
-		<div className="flex grow flex-col">
-			{/* Favorites section */}
+		<ResizablePanelGroup className="h-fit flex-1" direction="vertical">
+			{/* Favorites */}
 			<WorkbenchSection
-				className="var(--section-height, 120px)"
-				defaultOpen
 				emptyText="No favorites yet"
-				items$={favorites$}
+				state$={project$.workbench.favorites}
 				title="Favorites"
 			/>
 
-			{/* Entities section */}
+			<Memo>{() => <ResizableHandle disabled={!project$.workbench.favorites.open.get()} />}</Memo>
+
+			{/* Entities */}
 			<WorkbenchSection
-				className="flex-1"
-				defaultOpen
 				emptyText="No database entities found"
-				items$={entities$}
+				state$={project$.workbench.entities}
 				title="Entities"
 			/>
 
-			{/* Queries section */}
+			<Memo>{() => <ResizableHandle disabled={!project$.workbench.entities.open.get()} />}</Memo>
+
+			{/* Queries */}
 			<WorkbenchSection
-				className="var(--section-height, 200px)"
-				defaultOpen
 				emptyText="No queries found"
-				items$={queries$}
+				state$={project$.workbench.queries}
 				title="Queries"
 			/>
-		</div>
+		</ResizablePanelGroup>
 	)
 }

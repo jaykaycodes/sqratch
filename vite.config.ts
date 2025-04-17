@@ -5,19 +5,17 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+declare module 'bun' {
+	interface Env {
+		TAURI_DEV_HOST: string
+	}
+}
+
 const host = import.meta.env.TAURI_DEV_HOST
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-	plugins: [
-		TanStackRouterVite(),
-		react({
-			babel: {
-				plugins: ['@legendapp/state/babel'],
-			},
-		}),
-		tailwindcss(),
-	],
+	plugins: [TanStackRouterVite(), react(), tailwindcss()],
 	resolve: {
 		alias: {
 			'#': path.resolve(__dirname, './src'),

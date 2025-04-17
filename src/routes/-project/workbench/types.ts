@@ -5,12 +5,10 @@ export type WorkbenchItemType = SchemaEntityType | 'UserQuery'
 interface WorkbenchItemBase {
 	id: string
 	name: string
-	hint?: string
 }
 
 export interface WorkbenchItem extends WorkbenchItemBase {
 	type: WorkbenchItemType
-	favorited?: boolean
 }
 
 export interface WorkbenchSchemaGroup extends WorkbenchItemBase {
@@ -24,5 +22,5 @@ export interface WorkbenchFolderGroup extends WorkbenchItemBase {
 }
 
 export type WorkbenchGroup = WorkbenchFolderGroup | WorkbenchSchemaGroup
-
+export type WorkbenchQueryItems = (WorkbenchItem | WorkbenchFolderGroup)[]
 export type WorkbenchItemOrGroup = WorkbenchItem | WorkbenchGroup
