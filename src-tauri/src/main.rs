@@ -13,6 +13,8 @@ mod windows;
 
 use std::env;
 
+use tauri::Manager;
+
 use crate::commands::db::{DbApi, DbApiImpl};
 use crate::constants::LAUNCHER_LABEL;
 use crate::launch::{close_window, launch_app, launch_instance};
@@ -44,9 +46,10 @@ async fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
-        .manage(AppState::default())
         .invoke_handler(router.into_handler())
         .setup(|app| {
+            app.manage(AppState::new(app.handle().clone()));
+
             setup_logging(app.handle())?;
             launch_app(app.handle());
             Ok(())

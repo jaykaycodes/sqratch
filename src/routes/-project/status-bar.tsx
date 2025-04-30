@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { use$ } from '@legendapp/state/react'
+import { observer, use$ } from '@legendapp/state/react'
 import type { LucideIcon, LucideProps } from 'lucide-react'
 
 import Icons from '#/components/icons'
@@ -12,7 +12,7 @@ import { useProjectStore$ } from '#/providers/project'
 
 export default function StatusBar() {
 	return (
-		<div className="flex h-6 items-center justify-between border-t border-border bg-background overflow-x-auto">
+		<div className="flex h-6 items-center justify-between border-t border-border bg-background overflow-x-auto overflow-y-hidden">
 			<ConnectionStatusItem />
 		</div>
 	)
@@ -72,18 +72,11 @@ function StatusBarItem({
 	)
 }
 
-function ConnectionStatusItem() {
+const ConnectionStatusItem = observer(function ConnectionStatusItem() {
 	const store$ = useProjectStore$()
 	const status = use$(store$.connectionStatus)
 	const connStr = use$(store$.connectionString)
-
-	let name = 'Untitled'
-	try {
-		const url = new URL(connStr)
-		name = `${url.hostname}${url.port ? `:${url.port}` : ''}`
-	} catch (error) {
-		console.error(error)
-	}
+	const name = use$(store$.name)
 
 	return (
 		<StatusBarItem
@@ -102,4 +95,4 @@ function ConnectionStatusItem() {
 			onClick={() => copyToClipboard(connStr)}
 		/>
 	)
-}
+})

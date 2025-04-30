@@ -1,20 +1,21 @@
 import React from 'react'
 
+import { sep } from '@tauri-apps/api/path'
+import { readDir } from '@tauri-apps/plugin-fs'
+
 import { observable, when } from '@legendapp/state'
 import { useMount } from '@legendapp/state/react'
+import { synced } from '@legendapp/state/sync'
 
-import type { SchemaEntity, SchemaInfo } from '#/lib/taurpc'
-import { taurpc } from '#/lib/utils'
-import type {
-	WorkbenchItem,
-	WorkbenchItemOrGroup,
-	WorkbenchQueryItems,
-} from '#/routes/-project/workbench'
+import Icons from '#/components/icons'
+import { TitleBarAction, titleBarActions$ } from '#/components/title-bar'
+import { cn, taurpc } from '#/lib/utils'
+import { WORKBENCH_TABS, type WorkbenchItem, type WorkbenchTab } from '#/routes/-project/workbench'
 
-type ConnectionStatus = 'connected' | 'disconnected' | 'loading'
+export type ConnectionStatus = 'connected' | 'disconnected' | 'loading'
 
 const createProjectStore = (connectionString: string) => {
-	let name = connectionString.split('/').pop()
+	let name = connectionString.split('/').pop() ?? ''
 	try {
 		const url = new URL(connectionString)
 		name = url.hostname.split(':')[0]
@@ -22,44 +23,55 @@ const createProjectStore = (connectionString: string) => {
 		console.error(error)
 	}
 
+	const connectionStatus$ = observable('loading' as ConnectionStatus)
+
+	const queries$ = synced({
+		activate: 'auto',
+		get: async (): Promise<WorkbenchItem[]> => {
+			const entries = await readDir('.sqratch/queries', { baseDir: import.meta.env.PROJECT_ROOT })
+			console.log(entries)
+			return entries.map((entry) => {
+				const fullPath = [import.meta.env.PROJECT_ROOT, entry.name].join(sep())
+
+				return {
+					id: `file://${fullPath}`,
+					name: entry.name,
+					type: entry.isDirectory ? 'Folder' : 'File',
+					path: entry.name.split(sep()).filter(Boolean),
+				}
+			})
+		},
+	})
+
+	const entities$ = synced({
+		activate: 'auto',
+		get: async () => {
+			await when(() => connectionStatus$.get() === 'connected')
+			return taurpc.db.get_all_entities()
+		},
+	})
+
 	const store$ = observable({
 		name,
-		connectionStatus: 'loading' as ConnectionStatus,
 		connectionString,
-		favorites,
-		queries,
-		workbench: {
-			favorites: {
-				open: true,
-				heightPct: 40,
-				order: 0,
-				items: async () => favorites,
-			},
-			queries: {
-				open: true,
-				heightPct: 30,
-				order: 2,
-				items: async () => queries,
-			},
-			entities: {
-				open: true,
-				heightPct: 30,
-				order: 1,
-				items: async () => mapSchemaToWorkbenchItems(store$.schemas.get(), true),
+		connectionStatus: connectionStatus$,
+		queries: queries$,
+		entities: entities$,
+		favorites: new Set<string>(),
+		ui: {
+			workbenchTab: WORKBENCH_TABS[0].label as WorkbenchTab,
+			detailsPanel: {
+				open: false,
 			},
 		},
-		schemas: async () => {
-			await when(() => store$.connectionStatus.get() === 'connected')
-			return taurpc.db.get_all_schemas()
-		},
-		async connect(disconnect = false) {
-			const fn = disconnect ? taurpc.db.disconnect : taurpc.db.connect
+		async connect(connect = true) {
+			const fn = connect ? taurpc.db.connect : taurpc.db.disconnect
 
 			if (store$.connectionStatus.get() === 'disconnected') store$.connectionStatus.set('loading')
 
 			try {
 				await fn()
-				store$.connectionStatus.set(disconnect ? 'disconnected' : 'connected')
+				store$.connectionStatus.set(connect ? 'connected' : 'disconnected')
 			} catch (error) {
 				console.error(error)
 				store$.connectionStatus.set('disconnected')
@@ -75,17 +87,32 @@ export type ProjectStore = ReturnType<typeof createProjectStore>
 // biome-ignore lint/style/noNonNullAssertion: <explanation>
 const ProjectContext = React.createContext<ReturnType<typeof createProjectStore>>(null!)
 
-export const ProjectProvider = ({
+export default function ProjectProvider({
 	children,
 	connectionString,
 }: {
 	children: React.ReactNode
 	connectionString: string
-}) => {
+}) {
 	const store$ = React.useMemo(() => createProjectStore(connectionString), [connectionString])
 
 	useMount(() => {
-		store$.connect()
+		store$.connect().then(() => store$.entities.get())
+
+		const action = observable<TitleBarAction>(() => ({
+			tooltip: 'Toggle Details Panel',
+			Icon: Icons.PanelRight,
+			iconClassName: cn(
+				store$.ui.detailsPanel.open.get() ? 'text-foreground' : 'text-muted-foreground',
+			),
+			onClick: store$.ui.detailsPanel.open.toggle,
+		}))
+		titleBarActions$.set('details-panel', action)
+
+		return () => {
+			store$.connect(false)
+			titleBarActions$.delete('details-panel')
+		}
 	})
 
 	return <ProjectContext.Provider value={store$}>{children}</ProjectContext.Provider>
@@ -98,76 +125,4 @@ export function useProjectStore$() {
 	}
 
 	return store$
-}
-
-const queries: WorkbenchQueryItems = [
-	{
-		id: 'dir1',
-		type: 'Folder',
-		name: 'Reports',
-		items: [
-			{ id: 'q1', type: 'UserQuery', name: 'Monthly active users' },
-			{ id: 'q2', type: 'UserQuery', name: 'Revenue report' },
-			{
-				id: 'subdir1',
-				type: 'Folder',
-				name: 'Marketing',
-				items: [{ id: 'q3', type: 'UserQuery', name: 'Campaign performance' }],
-			},
-		],
-	},
-	{
-		id: 'dir2',
-		type: 'Folder',
-		name: 'Analytics',
-		items: [
-			{ id: 'q4', type: 'UserQuery', name: 'User retention' },
-			{ id: 'q5', type: 'UserQuery', name: 'Funnel analysis' },
-		],
-	},
-]
-
-const favorites: WorkbenchItem[] = [
-	{ id: 'fav1', type: 'UserQuery', name: 'Monthly active users' },
-	{ id: 'fav2', type: 'Table', name: 'users' },
-	{ id: 'fav3', type: 'UserQuery', name: 'Revenue report' },
-]
-
-function mapSchemaToWorkbenchItems(schemas: SchemaInfo[], reverse = false) {
-	// Create a new array for our result
-	let result: WorkbenchItemOrGroup[] = []
-
-	// Check if we have schemas
-	if (!schemas.length) return []
-
-	const sortFn = (a: { name: string }, b: { name: string }) => {
-		const comparison = a.name.localeCompare(b.name)
-		return reverse ? -comparison : comparison
-	}
-
-	const toSortedEntities = (entities: SchemaEntity[]) =>
-		entities.sort(sortFn).map((entity) => ({
-			id: entity.id,
-			name: entity.name,
-			type: entity.entity_type,
-		}))
-
-	// Process each schema
-	schemas.sort(sortFn).forEach((schema) => {
-		// For public schema, add its items directly to the result
-		if (schema.name === 'public') {
-			result = [...toSortedEntities(schema.entities), ...result]
-		} else {
-			// For other schemas, keep them as groups
-			result.push({
-				id: schema.id,
-				name: schema.name,
-				type: 'Schema',
-				items: toSortedEntities(schema.entities),
-			})
-		}
-	})
-
-	// Sort the top-level schemas (but not the flattened public items)
-	return result
 }

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use crate::db::{
     client::DatabaseClient,
     errors::{DbError, DbResult},
-    types::{ColumnDefinition, QueryResult, Row, SchemaEntity, SchemaEntityType, SchemaInfo},
+    types::{ColumnDefinition, Entity, EntityType, QueryResult, Row},
 };
 
 pub struct PostgresClient {
@@ -149,8 +149,9 @@ impl DatabaseClient for PostgresClient {
         })
     }
 
-    async fn get_all_schemas(&self) -> DbResult<Vec<SchemaInfo>> {
+    async fn get_all_entities(&self) -> DbResult<Vec<Entity>> {
         let pool = self.get_pool()?;
+        let mut entities = Vec::new();
 
         // Query for schemas with their OIDs
         let schema_query = r#"
@@ -158,7 +159,6 @@ impl DatabaseClient for PostgresClient {
                 n.oid::TEXT AS schema_id,
                 n.nspname AS schema_name
             FROM pg_namespace n
-            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
             ORDER BY n.nspname
         "#;
 
@@ -173,7 +173,6 @@ impl DatabaseClient for PostgresClient {
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relkind IN ('r', 'v', 'm')
-            AND n.nspname NOT IN ('pg_catalog', 'information_schema')
             ORDER BY n.nspname, c.relname
         "#;
 
@@ -186,79 +185,66 @@ impl DatabaseClient for PostgresClient {
                 p.proname AS entity_name
             FROM pg_proc p
             JOIN pg_namespace n ON n.oid = p.pronamespace
-            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
             ORDER BY n.nspname, p.proname
         "#;
 
-        // Fetch schemas
+        // First add schemas as entities
         let schema_rows = sqlx::query(schema_query).fetch_all(pool).await?;
-
-        // Initialize schema map with IDs
-        let mut schema_map: HashMap<String, (String, Vec<SchemaEntity>)> = HashMap::new();
         for row in schema_rows {
             let schema_name: String = row.get("schema_name");
             let schema_id: String = row.get("schema_id");
-            schema_map.insert(schema_name.clone(), (schema_id.to_string(), Vec::new()));
+
+            entities.push(Entity {
+                id: schema_id,
+                name: schema_name,
+                entity_type: EntityType::Schema,
+                schema_id: None,
+                schema_name: None,
+            });
         }
 
-        // Fetch relations (tables, views, materialized views)
+        // Add tables, views, and materialized views
         let rel_rows = sqlx::query(rel_query).fetch_all(pool).await?;
-
-        // Fetch functions
-        let func_rows = sqlx::query(func_query).fetch_all(pool).await?;
-
-        // Process relations
         for row in rel_rows {
             let schema_name: String = row.get("schema_name");
+            let schema_id: String = row.get("schema_id");
             let entity_type_str: String = row.get("entity_type");
             let entity_id: String = row.get("entity_id");
+            let entity_name: String = row.get("entity_name");
 
             let entity_type = match entity_type_str.as_str() {
-                "r" => SchemaEntityType::Table,
-                "v" => SchemaEntityType::View,
-                "m" => SchemaEntityType::MaterializedView,
+                "r" => EntityType::Table,
+                "v" => EntityType::View,
+                "m" => EntityType::MaterializedView,
                 _ => continue,
             };
 
-            let entity = SchemaEntity {
+            entities.push(Entity {
                 id: entity_id,
-                name: row.get("entity_name"),
-                schema: schema_name.clone(),
+                name: entity_name,
                 entity_type,
-            };
-
-            if let Some((_, entities)) = schema_map.get_mut(&schema_name) {
-                entities.push(entity);
-            }
+                schema_id: Some(schema_id),
+                schema_name: Some(schema_name),
+            });
         }
 
-        // Process functions
+        // Add functions
+        let func_rows = sqlx::query(func_query).fetch_all(pool).await?;
         for row in func_rows {
             let schema_name: String = row.get("schema_name");
+            let schema_id: String = row.get("schema_id");
             let entity_id: String = row.get("entity_id");
+            let entity_name: String = row.get("entity_name");
 
-            let entity = SchemaEntity {
+            entities.push(Entity {
                 id: entity_id,
-                name: row.get("entity_name"),
-                schema: schema_name.clone(),
-                entity_type: SchemaEntityType::Function,
-            };
-
-            if let Some((_, entities)) = schema_map.get_mut(&schema_name) {
-                entities.push(entity);
-            }
+                name: entity_name,
+                entity_type: EntityType::Function,
+                schema_id: Some(schema_id),
+                schema_name: Some(schema_name),
+            });
         }
 
-        // Convert HashMap to Vec<SchemaInfo>
-        let schema_infos: Vec<SchemaInfo> = schema_map
-            .into_iter()
-            .map(|(schema_name, (schema_id, entities))| SchemaInfo {
-                id: schema_id,
-                name: schema_name,
-                entities,
-            })
-            .collect();
-
-        Ok(schema_infos)
+        Ok(entities)
     }
 }

@@ -1,7 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@custom-variant dark (&:is(.dark *));
+
 @import "./theme.css";
+@import "./allotment.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
   --titlebar-height: 28px;
@@ -17,20 +20,26 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50 scroll-smooth overscroll-none cursor-default select-none;
+    @apply border-border outline-ring/50 scroll-smooth overscroll-none select-none;
   }
 
-  input,
-  textarea,
-  p,
-  code,
-  pre,
-  .selectable {
-    @apply select-text;
+  html {
+    font-size: 14px;
   }
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  div {
+    @apply cursor-default;
   }
 
   /* Custom Scrollbar Styles */

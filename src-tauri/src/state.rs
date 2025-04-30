@@ -3,28 +3,29 @@ use std::sync::RwLock;
 
 use tauri::{AppHandle, Manager, Runtime, Window};
 
+use crate::commands::db::DbEventTrigger;
 use crate::db::client::{create_client, DatabaseClientRef};
 use crate::errors::AppError;
 use crate::projects::{load_connection_string, ProjectId};
 
-/// A map of window labels to database clients
-pub struct AppState {
+pub struct AppState<R: Runtime> {
+    /// A map of window labels to database clients
     clients: RwLock<HashMap<String, DatabaseClientRef>>,
+    db_event_trigger: DbEventTrigger<R>,
 }
 
-impl AppState {}
-
-impl Default for AppState {
-    fn default() -> Self {
+impl<R: Runtime> AppState<R> {
+    pub fn new(app_handle: AppHandle<R>) -> Self {
         Self {
             clients: RwLock::new(HashMap::new()),
+            db_event_trigger: DbEventTrigger::new(app_handle),
         }
     }
 }
 
 pub fn get_window_client<R: Runtime>(window: &Window<R>) -> Result<DatabaseClientRef, AppError> {
     let app = window.app_handle();
-    let state = app.state::<AppState>();
+    let state = app.state::<AppState<R>>();
     let clients = state.clients.read().unwrap();
 
     let client = clients
@@ -34,8 +35,11 @@ pub fn get_window_client<R: Runtime>(window: &Window<R>) -> Result<DatabaseClien
     return Ok(client.clone());
 }
 
-pub fn init_state_for_project(app: &AppHandle, project_id: &ProjectId) -> Result<(), AppError> {
-    let state = app.state::<AppState>();
+pub fn init_state_for_project<R: Runtime>(
+    app: &AppHandle<R>,
+    project_id: &ProjectId,
+) -> Result<(), AppError> {
+    let state = app.state::<AppState<R>>();
 
     let connection_string = load_connection_string(project_id)?;
     let client = create_client(&connection_string)?;
@@ -51,6 +55,6 @@ pub fn init_state_for_project(app: &AppHandle, project_id: &ProjectId) -> Result
 
 pub fn cleanup_window_state<R: Runtime>(window: &Window<R>) {
     let app = window.app_handle();
-    let state = app.state::<AppState>();
+    let state = app.state::<AppState<R>>();
     state.clients.write().unwrap().remove(window.label());
 }

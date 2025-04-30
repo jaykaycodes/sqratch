@@ -12,11 +12,11 @@ export const Route = createRootRoute({
 	component: RootLayout,
 })
 
-export function RootLayout() {
+function RootLayout() {
 	return (
 		<QueryClientProvider client={queryClient}>
 			<UIProvider>
-				<div className="flex h-screen flex-col overflow-hidden">
+				<div className="flex h-screen w-screen flex-col overflow-hidden">
 					<TitleBar />
 					<main className="h-(--main-height) w-full">
 						<Outlet />

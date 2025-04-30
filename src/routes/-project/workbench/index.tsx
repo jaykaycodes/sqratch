@@ -1,41 +1,33 @@
-import { Memo } from '@legendapp/state/react'
+import { use$ } from '@legendapp/state/react'
 
-import { ResizableHandle, ResizablePanelGroup } from '#/components/ui/resizable'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { useProjectStore$ } from '#/providers/project'
 
-import WorkbenchSection from './section'
+import { WORKBENCH_TABS, type WorkbenchTab } from './misc'
 
-export * from './types'
+export * from './misc'
 
 export default function ProjectWorkbench() {
-	const project$ = useProjectStore$()
+	const state$ = useProjectStore$().ui
+	const activeTab = use$(state$.workbenchTab)
 
 	return (
-		<ResizablePanelGroup className="h-fit flex-1" direction="vertical">
-			{/* Favorites */}
-			<WorkbenchSection
-				emptyText="No favorites yet"
-				state$={project$.workbench.favorites}
-				title="Favorites"
-			/>
-
-			<Memo>{() => <ResizableHandle disabled={!project$.workbench.favorites.open.get()} />}</Memo>
-
-			{/* Entities */}
-			<WorkbenchSection
-				emptyText="No database entities found"
-				state$={project$.workbench.entities}
-				title="Entities"
-			/>
-
-			<Memo>{() => <ResizableHandle disabled={!project$.workbench.entities.open.get()} />}</Memo>
-
-			{/* Queries */}
-			<WorkbenchSection
-				emptyText="No queries found"
-				state$={project$.workbench.queries}
-				title="Queries"
-			/>
-		</ResizablePanelGroup>
+		<Tabs
+			onValueChange={(value) => state$.workbenchTab.set(value as WorkbenchTab)}
+			value={activeTab}
+		>
+			<TabsList className="rounded-none">
+				{WORKBENCH_TABS.map((tab) => (
+					<TabsTrigger key={tab.label} value={tab.label}>
+						{tab.label}
+					</TabsTrigger>
+				))}
+			</TabsList>
+			{WORKBENCH_TABS.map((tab) => (
+				<TabsContent hidden={tab.label !== activeTab} key={tab.label} value={tab.label}>
+					{tab.label} content
+				</TabsContent>
+			))}
+		</Tabs>
 	)
 }

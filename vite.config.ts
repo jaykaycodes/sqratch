@@ -21,6 +21,12 @@ export default defineConfig(async () => ({
 			'#': path.resolve(__dirname, './src'),
 		},
 	},
+	define: {
+		'import.meta.env.PROJECT_ROOT': JSON.stringify(path.resolve(__dirname, './')),
+	},
+	css: {
+		devSourcemap: true,
+	},
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
 	//
 	// 1. prevent vite from obscuring rust errors

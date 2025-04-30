@@ -23,6 +23,14 @@ pub struct QueryResult {
     pub result_index: usize,
 }
 
+/// Connection status
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
+pub enum ConnectionStatus {
+    Connected,
+    Disconnected,
+    Loading,
+}
+
 /// Column definition in a query result
 #[taurpc::ipc_type]
 #[derive(Debug)]
@@ -270,7 +278,8 @@ pub struct FunctionInfo {
 
 /// Entities that can live on a schema
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
-pub enum SchemaEntityType {
+pub enum EntityType {
+    Schema,
     Table,
     ForeignTable,
     View,
@@ -281,21 +290,27 @@ pub enum SchemaEntityType {
     Type,
 }
 
-/// Schema entity
+/// A database entity which can be a schema or entity within a schema
 #[taurpc::ipc_type]
 #[derive(Debug)]
-pub struct SchemaEntity {
+pub struct Entity {
+    /// Entity ID
     pub id: String,
+    /// Entity name
     pub name: String,
-    pub schema: String,
-    pub entity_type: SchemaEntityType,
+    /// Entity type - Schema entities have their own type
+    pub entity_type: EntityType,
+    /// Parent schema ID (null for schema entities)
+    pub schema_id: Option<String>,
+    /// Parent schema name (null for schema entities)
+    pub schema_name: Option<String>,
 }
 
-/// Schema information with detailed metadata
+/// Schema information including all contained entities
 #[taurpc::ipc_type]
 #[derive(Debug)]
-pub struct SchemaInfo {
+pub struct SchemaInfoWithEntities {
     pub id: String,
     pub name: String,
-    pub entities: Vec<SchemaEntity>,
+    pub entities: Vec<Entity>,
 }

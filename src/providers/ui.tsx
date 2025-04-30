@@ -33,7 +33,6 @@ const TanStackQueryDevtools = import.meta.env.PROD
 
 export const ui$ = observable({
 	devMode: false,
-	windowActions: null as React.ReactNode | null,
 })
 
 const UIProvider = ({ children }: { children: React.ReactNode }) => {
@@ -46,7 +45,7 @@ const UIProvider = ({ children }: { children: React.ReactNode }) => {
 
 	return (
 		<ThemeProvider attribute="class">
-			<TooltipProvider>
+			<TooltipProvider delayDuration={10000}>
 				<Show if={ui$.devMode} wrap={React.Suspense}>
 					<TanStackRouterDevtools />
 					<TanStackQueryDevtools />

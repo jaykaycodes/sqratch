@@ -34,19 +34,21 @@
 	"typescript.enablePromptUseWorkspaceTsdk": true,
 	"typescript.preferences.preferTypeOnlyAutoImports": true,
 	"typescript.preferences.autoImportSpecifierExcludeRegexes": [
-		"assert",
-		"console",
-		"node:console",
-		"node:process",
-		"node:stream/consumers",
-		"node:test",
-		"node:vm",
-		"process",
-		"stream",
-		"stream/consumers",
-		"vm",
-		"net",
-		"tls"
+		"@radix-ui",
+		"^assert",
+		"^console",
+		"^node:console",
+		"^node:process",
+		"^node:stream/consumers",
+		"^node:test",
+		"^node:vm",
+		"^process",
+		"^stream",
+		"^stream/consumers",
+		"^inspector",
+		"^vm",
+		"^net",
+		"^tls"
 	],
 	"files.watcherExclude": {
 		"**/.git/objects/**": true,
@@ -107,5 +109,6 @@
 		"CARGO_TARGET_DIR": "${workspaceFolder}/src-tauri/target/analyzer"
 	},
 	"rust-analyzer.cargo.targetDir": "${workspaceFolder}/src-tauri/target/analyzer",
-	"typescript.tsdk": "node_modules/typescript/lib"
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"tailwindCSS.rootFontSize": 14
 }
