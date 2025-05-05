@@ -9,6 +9,7 @@
 	"scripts": {
 		"dev:vite": "bunx --bun vite",
 		"dev": "tauri dev",
+		"deve": "tauri dev -- -- ../example",
 		"build:vite": "vite build",
 		"build": "tauri build",
 		"preview": "vite preview",
@@ -85,7 +86,7 @@
 		"zod": "^3.24.3"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.0.0-beta.1",
+		"@biomejs/biome": "^2.0.0-beta.2",
 		"@tailwindcss/vite": "^4.1.4",
 		"@tanstack/react-query-devtools": "^5.74.4",
 		"@tanstack/react-router-devtools": "^1.116.0",

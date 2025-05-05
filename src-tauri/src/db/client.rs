@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 
 use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use url::Url;
 
 use crate::db::errors::{DbError, DbResult};
@@ -37,19 +35,15 @@ pub trait DatabaseClient: Send + Sync {
     /// Get a flat list of all entities including schemas
     async fn get_all_entities(&self) -> DbResult<Vec<Entity>>;
 }
-pub type DatabaseClientRef = Arc<Mutex<dyn DatabaseClient>>;
 
 /// Creates a database client based on connection info without establishing a connection
-pub fn create_client(connection_string: &str) -> DbResult<DatabaseClientRef> {
+pub fn create_client(url: &Url) -> DbResult<impl DatabaseClient> {
     use crate::db::postgres::PostgresClient;
-
-    let url = Url::parse(connection_string)
-        .map_err(|e| DbError::Parsing(format!("Invalid connection URL: {}", e)))?;
 
     match url.scheme() {
         "postgres" | "postgresql" => {
-            let client = PostgresClient::new(connection_string)?;
-            Ok(Arc::new(Mutex::new(client)))
+            let client = PostgresClient::new(url.to_string().as_str())?;
+            Ok(client)
         }
         _ => Err(DbError::Unsupported(format!(
             "Unsupported database type: {}",

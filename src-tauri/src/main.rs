@@ -2,24 +2,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
-mod constants;
 mod db;
 mod errors;
 mod launch;
-mod plugins;
-mod projects;
+mod project;
 mod state;
-mod windows;
+mod utils;
 
 use std::env;
 
 use tauri::Manager;
 
 use crate::commands::db::{DbApi, DbApiImpl};
-use crate::constants::LAUNCHER_LABEL;
-use crate::launch::{close_window, launch_app, launch_instance};
-use crate::plugins::setup_logging;
 use crate::state::AppState;
+use crate::utils::paths;
 use taurpc::Router;
 
 // Our main entry point for the application
@@ -36,11 +32,11 @@ async fn main() {
     let builder = tauri::Builder::default()
         // NOTE: single instance should always come first
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            launch_instance(app, args, &cwd);
+            launch::launch_instance(app, args, &cwd);
         }))
         .plugin(
             tauri_plugin_window_state::Builder::new()
-                .with_denylist(&[LAUNCHER_LABEL])
+                .with_denylist(&[launch::LAUNCHER_LABEL])
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
@@ -48,15 +44,17 @@ async fn main() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(router.into_handler())
         .setup(|app| {
-            app.manage(AppState::new(app.handle().clone()));
+            paths::init_paths(app.handle());
 
-            setup_logging(app.handle())?;
-            launch_app(app.handle());
+            app.manage(AppState::new());
+
+            utils::plugins::setup_logging(app.handle())?;
+            launch::launch_app(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::Destroyed => {
-                close_window(window);
+                launch::close_window(window);
             }
             _ => {}
         });

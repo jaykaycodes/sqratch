@@ -1,7 +1,6 @@
 {
 	"npm.packageManager": "bun",
 	"biome.enabled": true,
-	"biome.searchInPath": true,
 	"editor.codeActionsOnSave": [
 		"source.removeUnusedImports",
 		"source.addMissingImports.ts",
@@ -103,12 +102,22 @@
 	"[tailwindcss]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	},
+	"[rust]": {
+		"editor.defaultFormatter": "rust-lang.rust-analyzer",
+		"editor.inlayHints.enabled": "offUnlessPressed"
+	},
+	"rust-analyzer.imports.granularity.group": "module",
+	"rust-analyzer.imports.prefix": "self",
+	"rust-analyzer.check.allTargets": false,
+	"rust-analyzer.diagnostics.disabled": ["unresolved-proc-macro", "inactive-code"],
+	"rust-analyzer.cargo.sysroot": "discover",
 	"rust-analyzer.restartServerOnConfigChange": true,
 	"rust-analyzer.linkedProjects": ["src-tauri/Cargo.toml"],
 	"rust-analyzer.server.extraEnv": {
 		"CARGO_TARGET_DIR": "${workspaceFolder}/src-tauri/target/analyzer"
 	},
 	"rust-analyzer.cargo.targetDir": "${workspaceFolder}/src-tauri/target/analyzer",
+	"errorLens.delay": 500,
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"tailwindCSS.rootFontSize": 14
 }
