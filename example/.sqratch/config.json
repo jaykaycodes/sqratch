@@ -1,0 +1,4 @@
+{
+	"name": "sqratch-example",
+	"db": "../.env|DB_URL"
+}
