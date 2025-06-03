@@ -1,56 +1,94 @@
-import React from 'react'
+import {
+	arrow,
+	FloatingArrow,
+	FloatingPortal,
+	flip,
+	offset,
+	type Placement,
+	shift,
+	useFloating,
+	useHover,
+	useInteractions,
+} from "@floating-ui/react";
+import React from "react";
+import { cn } from "#/lib/utils";
+import type { ColorVariant } from "./variants";
 
-import * as TooltipPrimitive from '@radix-ui/react-tooltip'
-
-import { cn } from '#/lib/utils'
-
-function TooltipProvider({
-	delayDuration = 0,
-	...props
-}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
-	return (
-		<TooltipPrimitive.Provider
-			data-slot="tooltip-provider"
-			delayDuration={delayDuration}
-			{...props}
-		/>
-	)
+export interface TooltipProps {
+	tip?: React.ReactNode;
+	/** @default "neutral" */
+	variant?: ColorVariant;
+	placement?: Placement;
+	/** @default 200 */
+	delayMs?: number;
+	/** @default 0 */
+	offsetBy?: number;
+	children: React.ReactElement;
 }
 
-function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-	return (
-		<TooltipProvider>
-			<TooltipPrimitive.Root data-slot="tooltip" {...props} />
-		</TooltipProvider>
-	)
-}
-
-function TooltipTrigger({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-	return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
-}
-
-function TooltipContent({
-	className,
-	sideOffset = 4,
+export default function Tooltip({
+	variant = "neutral",
+	tip,
+	placement,
+	delayMs = 200,
+	offsetBy = 0,
 	children,
-	...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: TooltipProps) {
+	const [open, onOpenChange] = React.useState(false);
+
+	const arrowRef = React.useRef(null);
+	const { refs, floatingStyles, context } = useFloating({
+		placement,
+		open,
+		onOpenChange,
+		middleware: [
+			offset(offsetBy),
+			shift({ padding: 8 }),
+			flip(),
+			arrow({ element: arrowRef.current }),
+		],
+	});
+
+	const hover = useHover(context, { enabled: !!tip, delay: delayMs });
+	const interactions = useInteractions([hover]);
+
 	return (
-		<TooltipPrimitive.Portal>
-			<TooltipPrimitive.Content
-				className={cn(
-					'fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 max-w-sm animate-in rounded-md bg-primary px-3 py-1.5 text-primary-foreground text-xs data-[state=closed]:animate-out',
-					className,
-				)}
-				data-slot="tooltip-content"
-				sideOffset={sideOffset}
-				{...props}
-			>
+		<>
+			{open && (
+				<FloatingPortal>
+					<div
+						ref={refs.setFloating}
+						style={floatingStyles}
+						{...interactions.getFloatingProps()}
+						className={cn(
+							"badge z-40 bg-base-content/20 h-fit max-w-2xl text-wrap",
+							variants[variant],
+						)}
+					>
+						{tip}
+						<FloatingArrow
+							ref={arrowRef}
+							context={context}
+							className="fill-(--badge-color)"
+						/>
+					</div>
+				</FloatingPortal>
+			)}
+
+			<div ref={refs.setReference} {...interactions.getReferenceProps()}>
 				{children}
-				<TooltipPrimitive.Arrow className="z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px] bg-primary fill-primary" />
-			</TooltipPrimitive.Content>
-		</TooltipPrimitive.Portal>
-	)
+			</div>
+		</>
+	);
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+const variants: Record<ColorVariant, string> = {
+	error: /** @tw */ "badge-error",
+	accent: /** @tw */ "badge-accent",
+	primary: /** @tw */ "badge-primary",
+	secondary: /** @tw */ "badge-secondary",
+	warning: /** @tw */ "badge-warning",
+	success: /** @tw */ "badge-success",
+	neutral: /** @tw */ "badge-neutral",
+	info: /** @tw */ "badge-info",
+};

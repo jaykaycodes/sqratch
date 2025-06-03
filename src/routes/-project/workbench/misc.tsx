@@ -34,7 +34,7 @@ export interface WorkbenchTabConfig {
 
 export const WORKBENCH_TABS = [
 	{
-		label: 'Entities',
+		label: 'Database',
 		Icon: Icons.Database,
 		emptyText: 'No database entities found',
 	},

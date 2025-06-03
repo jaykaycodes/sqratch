@@ -1,14 +1,12 @@
 use tauri::{Runtime, Window};
 use taurpc;
 
-use crate::db::types::{ConnectionStatus, Entity, QueryResult};
+use crate::db::types::{Entity, QueryResult};
 use crate::errors::AppError;
 use crate::state::get_window_client;
 
-#[taurpc::procedures(path = "db", export_to = "../src/lib/taurpc.ts", event_trigger = DbEventTrigger)]
+#[taurpc::procedures(path = "db", export_to = "../src/lib/taurpc.ts")]
 pub trait DbApi {
-    async fn get_connection_string(window: Window<impl Runtime>) -> Result<String, AppError>;
-
     // Test connection with raw connection string
     // TODO: Implement this w/o a current connection
     // async fn test_connection_string(conn_string: String) -> Result<String, AppError>;
@@ -30,33 +28,13 @@ pub trait DbApi {
 
     // Get all entities including schemas as a flat list
     async fn get_all_entities(window: Window<impl Runtime>) -> Result<Vec<Entity>, AppError>;
-
-    // EVENTS
-
-    #[taurpc(event)]
-    async fn subscribe_connection_status(
-        window: Window<impl Runtime>,
-        status: ConnectionStatus,
-    ) -> Result<(), AppError>;
 }
 
 #[derive(Clone)]
 pub struct DbApiImpl;
 
-impl Default for DbApiImpl {
-    fn default() -> Self {
-        Self {}
-    }
-}
-
 #[taurpc::resolvers]
 impl DbApi for DbApiImpl {
-    async fn get_connection_string(self, window: Window<impl Runtime>) -> Result<String, AppError> {
-        let client = get_window_client(&window)?;
-        let guard = client.lock().await;
-        Ok(guard.get_connection_string())
-    }
-
     async fn is_connected(self, window: Window<impl Runtime>) -> Result<bool, AppError> {
         let client = get_window_client(&window)?;
         let guard = client.lock().await;

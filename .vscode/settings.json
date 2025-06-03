@@ -19,14 +19,18 @@
 	},
 	"tailwindCSS.validate": true,
 	"tailwindCSS.classFunctions": ["cva", "cn", "twMerge"],
+	// https://github.com/paolotiu/tailwind-intellisense-regex-list
 	"tailwindCSS.experimental.classRegex": [
-		["(?<=cva\\([\\s\\S]*?)[\"']([^\"']+)[\"']"],
-		["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*)[\"'`]"],
-		["cn\\(\\s*[\"'`]([^\"'`]*)[\"'`]\\s*,\\s*\\{[^}]*\\}\\)", "\\1"],
-		["(\\w+)ClassName\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]", "\\2"],
-		["classNames\\s*=\\s*\\{\\{([^}]*)\\}\\}", "[\"'`]([^\"'`]*)[\"'`]"],
-		["className\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]", "\\1"],
-		["className\\s*=\\s*\\{([^}]*)\\}", "[\"'`]([^\"'`]*)[\"'`]"]
+		// vars
+		[
+			"(?:\\b(?:const|let|var)\\s+)?[\\w$_]*(?:[Ss]tyles|[Cc]lasses|[Cc]lassnames)[\\w\\d]*\\s*(?:=|\\+=)\\s*['\"]([^'\"]*)['\"]"
+		],
+		// helper function calls
+		["(cva|clsx|cn|twMerge)\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+		// classNames object
+		["classNames:\\s*{([\\s\\S]*?)}", "\\s?[\\w].*:\\s*?[\"'`]([^\"'`]*).*?,?\\s?"],
+		// comments (e.g. `/* @tw */ 'className'`)
+		"@tw\\s\\*\/\\s+[\"'`]([^\"'`]*)"
 	],
 	"typescript.preferences.importModuleSpecifierEnding": "minimal",
 	"typescript.preferences.includePackageJsonAutoImports": "on",

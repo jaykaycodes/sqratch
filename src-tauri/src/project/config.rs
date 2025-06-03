@@ -1,4 +1,4 @@
-use super::ProjectPath;
+use super::ProjectHandle;
 
 /// Represents the user-defined configuration for a project
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -11,26 +11,33 @@ pub struct ProjectConfig {
 }
 
 impl ProjectConfig {
-    /// Loads a project configuration from a specified path, supporting both direct file paths
-    /// and directory paths containing a `config.json` file.
-    ///
-    /// # Arguments
-    /// * `path` - A string slice representing the path to the configuration file or directory.
-    ///
-    /// # Errors
-    /// Returns an error if the path is invalid, the file cannot be read, or the JSON parsing fails.
-    pub fn load(path: &ProjectPath) -> Result<Self, ConfigError> {
-        let config_content = match (path.is_file(), path.is_dir()) {
-            (true, _) => std::fs::read_to_string(path),
-            (false, true) => std::fs::read_to_string(path.join("config.json")),
-            _ => {
-                return Err(ConfigError::InvalidPath(
-                    path.to_string_lossy().into_owned(),
-                ))
-            }
-        }?;
+    /// Loads a project configuration given a ProjectRef.
+    /// Attempts to read a config.json file from the project directory.
+    /// If the file doesn't exist or can't be read, returns a default configuration.
+    pub fn load(project_ref: &ProjectHandle) -> Result<Self, ConfigError> {
+        // If the project is temporary, return a default configuration
+        if project_ref.is_temp {
+            let url = project_ref.url.clone().unwrap();
+            let name = url
+                .path_segments()
+                .and_then(|segments| segments.last())
+                .unwrap_or("Untitled")
+                .to_string();
 
-        serde_json::from_str(&config_content).map_err(|e| ConfigError::Parse(e.to_string()))
+            return Ok(ProjectConfig {
+                name: Some(name),
+                db: url.to_string(),
+            });
+        }
+
+        // For non-temporary projects, attempt to read the config file
+        let config_path = project_ref.path.join("config.json");
+        match std::fs::read_to_string(&config_path) {
+            Ok(content) => {
+                serde_json::from_str(&content).map_err(|e| ConfigError::Parse(e.to_string()))
+            }
+            Err(e) => Err(ConfigError::Io(e)),
+        }
     }
 }
 
@@ -38,9 +45,6 @@ impl ProjectConfig {
 pub enum ConfigError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-
-    #[error("Invalid path: {0}")]
-    InvalidPath(String),
 
     #[error("Parse error: {0}")]
     Parse(String),

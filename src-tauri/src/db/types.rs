@@ -23,14 +23,6 @@ pub struct QueryResult {
     pub result_index: usize,
 }
 
-/// Connection status
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
-pub enum ConnectionStatus {
-    Connected,
-    Disconnected,
-    Loading,
-}
-
 /// Column definition in a query result
 #[taurpc::ipc_type]
 #[derive(Debug)]

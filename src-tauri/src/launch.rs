@@ -5,7 +5,7 @@ use std::env;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 use crate::errors::AppError;
-use crate::project::{Project, ProjectPath};
+use crate::project::{Project, ProjectHandle};
 use crate::state::{cleanup_window_state, init_project_window};
 
 // Window labels
@@ -65,8 +65,8 @@ fn launch_window(app: &AppHandle, args: Vec<String>, cwd: &str) -> Result<(), Ap
 
     log::debug!("Received args: {:?} from cwd: {}", args, cwd);
     if let Some(arg) = args.get(1) {
-        let project_path = ProjectPath::from_cli_input(arg, cwd)?;
-        open_project_window(app, &project_path)?;
+        let handle = ProjectHandle::from_cli_input(arg, cwd)?;
+        open_project_window(app, &handle)?;
     } else {
         // No project specified, open launcher
         open_launcher_window(app)?;
@@ -97,8 +97,8 @@ fn free_console() {
 }
 
 /// Opens (or focuses) a project window using a unique window ID
-fn open_project_window(app: &AppHandle, project_path: &ProjectPath) -> Result<(), AppError> {
-    let window_label = project_path.to_window_label();
+fn open_project_window(app: &AppHandle, handle: &ProjectHandle) -> Result<(), AppError> {
+    let window_label = handle.to_window_label();
 
     log::debug!("Opening window: {}", window_label);
 
@@ -108,7 +108,7 @@ fn open_project_window(app: &AppHandle, project_path: &ProjectPath) -> Result<()
     }
 
     // Otherwise, load the project and open a window for it
-    let project = Project::load(project_path)?;
+    let project = Project::load(handle)?;
 
     let title = project.name.clone();
     init_project_window(app, project)?;

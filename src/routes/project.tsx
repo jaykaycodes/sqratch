@@ -1,37 +1,29 @@
-import { use$ } from '@legendapp/state/react'
+import { Memo } from '@legendapp/state/react'
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { Allotment, LayoutPriority } from 'allotment'
 
-import { taurpc } from '#/lib/utils'
-import ProjectProvider, { useProjectStore$ } from '#/providers/project'
+import Q from '#/lib/queries'
+import { queryClient, taurpc } from '#/lib/utils'
 import StatusBar from '#/routes/-project/status-bar'
+import uiStore$ from '#/stores/ui-store'
 
 import ProjectDetails from './-project/details'
 import ProjectWorkbench from './-project/workbench'
 
 export const Route = createFileRoute('/project')({
-	loader: () => taurpc.db.get_connection_string(),
-	component: Wrapper,
+	loader: async () => {
+		queryClient.prefetchQuery(Q.db.entities)
+		return { project: await taurpc.projects.get_project() }
+	},
+	component: ProjectLayout,
 })
 
-function Wrapper() {
-	const connectionString = Route.useLoaderData()
-	return (
-		<ProjectProvider connectionString={connectionString}>
-			<ProjectLayout />
-		</ProjectProvider>
-	)
-}
-
 function ProjectLayout() {
-	const project$ = useProjectStore$()
-	const showDetailsPanel = use$(project$.ui.detailsPanel.open)
-
 	return (
 		<div className="flex size-full flex-col">
 			<Allotment
 				onVisibleChange={(index, visible) => {
-					if (index === 2) project$.ui.detailsPanel.open.set(visible)
+					if (index === 2) uiStore$.detailsPanel.open.set(visible)
 				}}
 				proportionalLayout={false}
 			>
@@ -48,16 +40,20 @@ function ProjectLayout() {
 					<Outlet />
 				</Allotment.Pane>
 
-				<Allotment.Pane
-					key="details-panel"
-					minSize={170}
-					preferredSize={300}
-					priority={LayoutPriority.Low}
-					snap
-					visible={showDetailsPanel}
-				>
-					<ProjectDetails />
-				</Allotment.Pane>
+				<Memo>
+					{() => (
+						<Allotment.Pane
+							key="details-panel"
+							minSize={170}
+							preferredSize={300}
+							priority={LayoutPriority.Low}
+							snap
+							visible={uiStore$.detailsPanel.open.get()}
+						>
+							<ProjectDetails />
+						</Allotment.Pane>
+					)}
+				</Memo>
 			</Allotment>
 
 			<StatusBar />

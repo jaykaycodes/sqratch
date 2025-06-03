@@ -14,6 +14,7 @@ use std::env;
 use tauri::Manager;
 
 use crate::commands::db::{DbApi, DbApiImpl};
+use crate::commands::projects::{ProjectsApi, ProjectsApiImpl};
 use crate::state::AppState;
 use crate::utils::paths;
 use taurpc::Router;
@@ -27,7 +28,8 @@ async fn main() {
                 .formatter(specta_typescript::formatter::biome)
                 .bigint(specta_typescript::BigIntExportBehavior::String),
         )
-        .merge(DbApiImpl::default().into_handler());
+        .merge(DbApiImpl {}.into_handler())
+        .merge(ProjectsApiImpl {}.into_handler());
 
     let builder = tauri::Builder::default()
         // NOTE: single instance should always come first

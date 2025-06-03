@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.0.0-beta.1/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.0.0-beta.5/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -41,13 +41,15 @@
 				"noDangerouslySetInnerHtml": "off"
 			},
 			"style": {
+				"noEnum": "error",
+				"noProcessEnv": "error",
 				"noParameterAssign": "info",
 				"noNonNullAssertion": "info",
 				"useNodejsImportProtocol": { "fix": "unsafe", "level": "error" },
 				"useTemplate": { "fix": "unsafe", "level": "warn" },
 				"noUnusedTemplateLiteral": { "fix": "unsafe", "level": "warn" }
 			},
-			"suspicious": { "noExplicitAny": "warn" },
+			"suspicious": { "noExplicitAny": "info" },
 			"nursery": {
 				// "useSortedClasses": {
 				// 	"fix": "safe",
@@ -58,9 +60,7 @@
 				// 	}
 				// },
 				"useParseIntRadix": "info",
-				"noEnum": "error",
-				"noProcessEnv": "error",
-				"noFloatingPromises": "error"
+				"noFloatingPromises": { "level": "error" }
 			}
 		}
 	},

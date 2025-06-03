@@ -1,14 +1,15 @@
-import { AppLink } from '#/components/app-link'
+import { Link } from '@tanstack/react-router'
 
 import Icons from './icons'
+
 export function DefaultNotFound() {
 	return (
 		<div className="flex h-screen w-screen flex-col items-center justify-center pb-12">
 			<h1 className="mb-4 font-medium text-2xl">Page not found</h1>
 
-			<AppLink size="sm" to="/" variant="default">
+			<Link className="btn" to="/">
 				Go to Home
-			</AppLink>
+			</Link>
 		</div>
 	)
 }

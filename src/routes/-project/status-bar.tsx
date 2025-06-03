@@ -1,14 +1,10 @@
-import React from 'react'
+import { useQuery } from '@tanstack/react-query'
 
-import { observer, use$ } from '@legendapp/state/react'
-import type { LucideIcon, LucideProps } from 'lucide-react'
-
-import Icons from '#/components/icons'
-import { Button } from '#/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '#/components/ui/tooltip'
-import { TooltipProvider } from '#/components/ui/tooltip'
+import DivButton from '#/components/div-button'
+import Tooltip from '#/components/ui/tooltip'
+import { useProject } from '#/lib/hooks/use-project'
+import Q from '#/lib/queries'
 import { cn, copyToClipboard } from '#/lib/utils'
-import { useProjectStore$ } from '#/providers/project'
 
 export default function StatusBar() {
 	return (
@@ -18,81 +14,33 @@ export default function StatusBar() {
 	)
 }
 
-interface StatusBarItemProps {
-	label: string
-	icon?: LucideIcon
-	iconProps?: LucideProps
-	labelClassName?: string
-	className?: string
-	tooltip?: string
-	onClick?: () => void
-}
+function ConnectionStatusItem() {
+	const project = useProject()
 
-function StatusBarItem({
-	label,
-	icon,
-	iconProps,
-	className,
-	tooltip,
-	labelClassName,
-	onClick,
-}: StatusBarItemProps) {
-	const Icon = React.useMemo(
-		() =>
-			icon
-				? React.createElement(icon, {
-						...iconProps,
-						className: cn(iconProps?.className, 'size-2'),
-					})
-				: null,
-		[icon, iconProps],
-	)
-
-	const body = (
-		<Button
-			asDiv
-			className={cn('flex items-center gap-1', className)}
-			onClick={onClick}
-			variant="ghost"
-		>
-			{Icon}
-			<span className={cn('text-2xs', labelClassName)}>{label}</span>
-		</Button>
-	)
-
-	return tooltip ? (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>{body}</TooltipTrigger>
-				<TooltipContent>{tooltip}</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
-	) : (
-		body
-	)
-}
-
-const ConnectionStatusItem = observer(function ConnectionStatusItem() {
-	const store$ = useProjectStore$()
-	const status = use$(store$.connectionStatus)
-	const connStr = use$(store$.connectionString)
-	const name = use$(store$.name)
+	const { data: isConnected, isLoading } = useQuery({
+		...Q.db.isConnected,
+		refetchOnWindowFocus: 'always',
+		refetchInterval: ({ state }) => (state.data ? 10_000 : false),
+	})
 
 	return (
-		<StatusBarItem
-			className="cursor-copy"
-			icon={Icons.Circle}
-			iconProps={{
-				fill: 'currentColor',
-				className: cn('shadow-md rounded-full inset-ring-1', {
-					'text-green-500 shadow-green-400/50 inset-ring-green-400/50': status === 'connected',
-					'text-yellow-500 shadow-yellow-400/50 animate-pulse inset-ring-yellow-400/50':
-						status === 'loading',
-					'text-red-500 shadow-red-400/50 inset-ring-red-400/50': status === 'disconnected',
-				}),
-			}}
-			label={name}
-			onClick={() => copyToClipboard(connStr)}
-		/>
+		<Tooltip placement="top-end" tip={project.db_url}>
+			<DivButton
+				className="cursor-copy btn-ghost bg-base-300 border-none shadow-none hover:bg-base-200"
+				onClick={() => copyToClipboard(project.db_url)}
+			>
+				<div
+					className={cn(
+						'status',
+						isLoading
+							? 'animate-pulse status-warning'
+							: isConnected
+								? 'status-success'
+								: 'status-error',
+					)}
+				/>
+				<span className="text-2xs">{project.name}</span>
+			</DivButton>
+		</Tooltip>
 	)
-})
+}

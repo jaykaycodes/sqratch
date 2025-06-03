@@ -7,7 +7,7 @@ import { $React } from '@legendapp/state/react-web'
 import Icons from '#/components/icons'
 import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
-import { useProjectStore$ } from '#/providers/project'
+import { useProjectStore$ } from '#/stores/project-store'
 
 import { itemIcons, type WorkbenchItem } from './misc'
 
