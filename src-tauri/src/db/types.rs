@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 /// Database query result
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct QueryResult {
     /// Execution timestamp
@@ -25,6 +26,7 @@ pub struct QueryResult {
 
 /// Column definition in a query result
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct ColumnDefinition {
     /// Column name
@@ -114,6 +116,7 @@ pub enum ConstraintType {
 
 /// Foreign key reference
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct ForeignKeyReference {
     /// Referenced schema
@@ -130,6 +133,7 @@ pub struct ForeignKeyReference {
 
 /// Database constraint
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct ConstraintInfo {
     /// Constraint name
@@ -150,6 +154,7 @@ pub struct ConstraintInfo {
 
 /// Index information
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct IndexInfo {
     /// Index name
@@ -170,6 +175,7 @@ pub struct IndexInfo {
 
 /// Column information with detailed metadata for UI display
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct ColumnInfo {
     /// Column name
@@ -208,6 +214,7 @@ pub struct ColumnInfo {
 
 /// Table information with detailed metadata
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct TableInfo {
     /// Table name
@@ -234,6 +241,7 @@ pub struct TableInfo {
 
 /// View information
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct ViewInfo {
     /// View name
@@ -254,6 +262,7 @@ pub struct ViewInfo {
 
 /// Function information
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct FunctionInfo {
     /// Function name
@@ -270,7 +279,7 @@ pub struct FunctionInfo {
 
 /// Entities that can live on a schema
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
-pub enum EntityType {
+pub enum EntityKind {
     Schema,
     Table,
     ForeignTable,
@@ -284,6 +293,7 @@ pub enum EntityType {
 
 /// A database entity which can be a schema or entity within a schema
 #[taurpc::ipc_type]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug)]
 pub struct Entity {
     /// Entity ID
@@ -291,18 +301,9 @@ pub struct Entity {
     /// Entity name
     pub name: String,
     /// Entity type - Schema entities have their own type
-    pub entity_type: EntityType,
-    /// Parent schema ID (null for schema entities)
+    pub kind: EntityKind,
+    /// Parent schema ID (null for schema entities or non-PG databases)
     pub schema_id: Option<String>,
-    /// Parent schema name (null for schema entities)
-    pub schema_name: Option<String>,
-}
-
-/// Schema information including all contained entities
-#[taurpc::ipc_type]
-#[derive(Debug)]
-pub struct SchemaInfoWithEntities {
-    pub id: String,
-    pub name: String,
-    pub entities: Vec<Entity>,
+    /// Whether this is a system entity
+    pub is_system: bool,
 }

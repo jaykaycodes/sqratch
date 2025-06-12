@@ -10,7 +10,7 @@ export * from './misc'
 
 export default function ProjectWorkbench() {
 	return (
-		<div className="flex flex-col h-full">
+		<div className="flex flex-col h-full gap-2">
 			<div className="tabs tabs-border w-full overflow-auto justify-center">
 				{WORKBENCH_TABS.map((tab) => (
 					<label className="tab" key={tab.label}>
@@ -38,7 +38,7 @@ function WorkbenchTabContent({ tab }: { tab: WorkbenchTab }) {
 	return (
 		<$React.div
 			$className={() =>
-				cn('overflow-auto flex-1 p-2', tab !== ui$.workbench.activeTab.get() && 'hidden')
+				cn('overflow-auto flex-1', tab !== ui$.workbench.activeTab.get() && 'hidden')
 			}
 		>
 			{tab === 'Database' ? <DatabaseTab /> : <QueriesTab />}

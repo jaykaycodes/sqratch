@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use crate::db::{
     client::DatabaseClient,
     errors::{DbError, DbResult},
-    types::{ColumnDefinition, Entity, EntityType, QueryResult, Row},
+    types::{ColumnDefinition, Entity, EntityKind, QueryResult, Row},
 };
 
 pub struct PostgresClient {
@@ -153,11 +153,17 @@ impl DatabaseClient for PostgresClient {
         let pool = self.get_pool()?;
         let mut entities = Vec::new();
 
-        // Query for schemas with their OIDs
+        // Query for schemas with their OIDs and system status
         let schema_query = r#"
             SELECT
                 n.oid::TEXT AS schema_id,
-                n.nspname AS schema_name
+                n.nspname AS schema_name,
+                CASE
+                    WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
+                         OR n.nspname LIKE 'pg_%'
+                    THEN true
+                    ELSE false
+                END AS is_system
             FROM pg_namespace n
             ORDER BY n.nspname
         "#;
@@ -167,9 +173,15 @@ impl DatabaseClient for PostgresClient {
             SELECT
                 c.oid::TEXT AS entity_id,
                 n.oid::TEXT AS schema_id,
-                n.nspname AS schema_name,
                 c.relname AS entity_name,
-                c.relkind::TEXT AS entity_type
+                c.relkind::TEXT AS entity_kind,
+                n.nspname AS schema_name,
+                CASE
+                    WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
+                         OR n.nspname LIKE 'pg_%'
+                    THEN true
+                    ELSE false
+                END AS is_system
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relkind IN ('r', 'v', 'm')
@@ -181,8 +193,14 @@ impl DatabaseClient for PostgresClient {
             SELECT
                 p.oid::TEXT AS entity_id,
                 n.oid::TEXT AS schema_id,
+                p.proname AS entity_name,
                 n.nspname AS schema_name,
-                p.proname AS entity_name
+                CASE
+                    WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
+                         OR n.nspname LIKE 'pg_%'
+                    THEN true
+                    ELSE false
+                END AS is_system
             FROM pg_proc p
             JOIN pg_namespace n ON n.oid = p.pronamespace
             ORDER BY n.nspname, p.proname
@@ -193,55 +211,56 @@ impl DatabaseClient for PostgresClient {
         for row in schema_rows {
             let schema_name: String = row.get("schema_name");
             let schema_id: String = row.get("schema_id");
+            let is_system: bool = row.get("is_system");
 
             entities.push(Entity {
                 id: schema_id,
                 name: schema_name,
-                entity_type: EntityType::Schema,
+                kind: EntityKind::Schema,
                 schema_id: None,
-                schema_name: None,
+                is_system,
             });
         }
 
         // Add tables, views, and materialized views
         let rel_rows = sqlx::query(rel_query).fetch_all(pool).await?;
         for row in rel_rows {
-            let schema_name: String = row.get("schema_name");
             let schema_id: String = row.get("schema_id");
-            let entity_type_str: String = row.get("entity_type");
-            let entity_id: String = row.get("entity_id");
-            let entity_name: String = row.get("entity_name");
+            let kind_str: String = row.get("entity_kind");
+            let id: String = row.get("entity_id");
+            let name: String = row.get("entity_name");
+            let is_system: bool = row.get("is_system");
 
-            let entity_type = match entity_type_str.as_str() {
-                "r" => EntityType::Table,
-                "v" => EntityType::View,
-                "m" => EntityType::MaterializedView,
+            let kind = match kind_str.as_str() {
+                "r" => EntityKind::Table,
+                "v" => EntityKind::View,
+                "m" => EntityKind::MaterializedView,
                 _ => continue,
             };
 
             entities.push(Entity {
-                id: entity_id,
-                name: entity_name,
-                entity_type,
+                id,
+                name,
+                kind,
                 schema_id: Some(schema_id),
-                schema_name: Some(schema_name),
+                is_system,
             });
         }
 
         // Add functions
         let func_rows = sqlx::query(func_query).fetch_all(pool).await?;
         for row in func_rows {
-            let schema_name: String = row.get("schema_name");
             let schema_id: String = row.get("schema_id");
-            let entity_id: String = row.get("entity_id");
-            let entity_name: String = row.get("entity_name");
+            let id: String = row.get("entity_id");
+            let name: String = row.get("entity_name");
+            let is_system: bool = row.get("is_system");
 
             entities.push(Entity {
-                id: entity_id,
-                name: entity_name,
-                entity_type: EntityType::Function,
+                id,
+                name,
+                kind: EntityKind::Function,
                 schema_id: Some(schema_id),
-                schema_name: Some(schema_name),
+                is_system,
             });
         }
 

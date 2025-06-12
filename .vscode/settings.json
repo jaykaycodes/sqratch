@@ -42,6 +42,7 @@
 		"^console",
 		"^node:console",
 		"^node:process",
+		"^node:inspector",
 		"^node:stream/consumers",
 		"^node:test",
 		"^node:vm",
