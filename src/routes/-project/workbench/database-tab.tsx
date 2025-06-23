@@ -6,6 +6,7 @@ import Icons from '#/components/icons'
 import Q from '#/lib/queries'
 import type { Entity } from '#/lib/taurpc'
 import { cn } from '#/lib/utils'
+import uiStore$ from '#/stores/ui-store'
 
 const rootItemId = '__root'
 
@@ -16,6 +17,9 @@ export default function DatabaseTab() {
 		rootItemId,
 		getItemName: (item) => item.getItemData().name,
 		isItemFolder: (item) => item.getItemData().kind === 'Schema',
+		onPrimaryAction(item) {
+			uiStore$.detailsPanel.activeObjectId.set(item.getItemData().id)
+		},
 		dataLoader: {
 			getItem: (itemId) => {
 				const item = entitiesQuery.data.find((e) => e.id === itemId)

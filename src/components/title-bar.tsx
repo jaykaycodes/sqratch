@@ -39,7 +39,7 @@ const ActionButton = reactive(
 				onClick={onClick}
 				type="button"
 			>
-				<Icon className={cn(isActive ? 'text-base-content' : 'text-base-content/80', className)} />
+				<Icon className={cn(isActive ? 'text-base-content' : 'text-base-content/60', className)} />
 			</button>
 		</Tooltip>
 	),
@@ -49,20 +49,20 @@ function ProjectActions() {
 	return (
 		<>
 			<ActionButton
-				$isActive={ui$.detailsPanel.open}
-				$label={() => (ui$.detailsPanel.open.get() ? 'Hide Details Panel' : 'Show Details Panel')}
-				Icon={Icons.PanelRight}
-				onClick={() => ui$.detailsPanel.open.toggle()}
+				$isActive={ui$.workbench.open}
+				$label={() => (ui$.workbench.open.get() ? 'Hide Left Panel' : 'Show Left Panel')}
+				Icon={Icons.PanelLeft}
+				onClick={() => ui$.workbench.open.toggle()}
+			/>
+			<ActionButton
+				$isActive={ui$.bottomPanel.open}
+				$label={() => (ui$.bottomPanel.open.get() ? 'Hide Bottom Panel' : 'Show Bottom Panel')}
+				Icon={Icons.PanelBottom}
+				onClick={() => ui$.bottomPanel.open.toggle()}
 			/>
 			<ActionButton
 				$isActive={ui$.detailsPanel.open}
-				$label={() => (ui$.detailsPanel.open.get() ? 'Hide Details Panel' : 'Show Details Panel')}
-				Icon={Icons.PanelRight}
-				onClick={() => ui$.detailsPanel.open.toggle()}
-			/>
-			<ActionButton
-				$isActive={ui$.detailsPanel.open}
-				$label={() => (ui$.detailsPanel.open.get() ? 'Hide Details Panel' : 'Show Details Panel')}
+				$label={() => (ui$.detailsPanel.open.get() ? 'Hide Right Panel' : 'Show Right Panel')}
 				Icon={Icons.PanelRight}
 				onClick={() => ui$.detailsPanel.open.toggle()}
 			/>

@@ -8,8 +8,12 @@ const uiStore$ = observable({
 		open: true,
 		activeTab: WORKBENCH_TABS[0].label as WorkbenchTab,
 	},
-	detailsPanel: {
+	bottomPanel: {
 		open: false,
+	},
+	detailsPanel: {
+		open: true,
+		activeObjectId: undefined as string | undefined,
 	},
 })
 

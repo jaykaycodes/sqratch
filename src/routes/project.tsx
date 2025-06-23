@@ -1,4 +1,4 @@
-import { Memo } from '@legendapp/state/react'
+import { use$ } from '@legendapp/state/react'
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { Allotment, LayoutPriority } from 'allotment'
 
@@ -19,19 +19,18 @@ export const Route = createFileRoute('/project')({
 })
 
 function ProjectLayout() {
+	const isDetailsVisible = use$(uiStore$.detailsPanel.open)
+	const isWorkbenchVisible = use$(uiStore$.workbench.open)
+
 	return (
 		<div className="flex size-full flex-col">
-			<Allotment
-				onVisibleChange={(index, visible) => {
-					if (index === 2) uiStore$.detailsPanel.open.set(visible)
-				}}
-				proportionalLayout={false}
-			>
+			<Allotment proportionalLayout={true}>
 				<Allotment.Pane
 					key="workbench-panel"
 					minSize={170}
 					preferredSize={300}
 					priority={LayoutPriority.Low}
+					visible={isWorkbenchVisible}
 				>
 					<ProjectWorkbench />
 				</Allotment.Pane>
@@ -40,20 +39,16 @@ function ProjectLayout() {
 					<Outlet />
 				</Allotment.Pane>
 
-				<Memo>
-					{() => (
-						<Allotment.Pane
-							key="details-panel"
-							minSize={170}
-							preferredSize={300}
-							priority={LayoutPriority.Low}
-							snap
-							visible={uiStore$.detailsPanel.open.get()}
-						>
-							<ProjectDetails />
-						</Allotment.Pane>
-					)}
-				</Memo>
+				<Allotment.Pane
+					key="details-panel"
+					minSize={170}
+					preferredSize={300}
+					priority={LayoutPriority.Low}
+					snap
+					visible={isDetailsVisible}
+				>
+					<ProjectDetails />
+				</Allotment.Pane>
 			</Allotment>
 
 			<StatusBar />
