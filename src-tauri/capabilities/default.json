@@ -1,70 +1,76 @@
 {
-	"$schema": "../gen/schemas/desktop-schema.json",
-	"identifier": "default",
-	"description": "Capability for the main window",
-	"platforms": ["macOS", "windows", "linux"],
-	"windows": ["*"],
-	"permissions": [
-		"core:default",
-		"core:app:allow-version",
-		"core:event:allow-listen",
-		"core:event:allow-unlisten",
-		"core:event:allow-emit",
-		"opener:default",
-		"window-state:default",
-		"dialog:default",
-		{
-			"identifier": "fs:allow-read-file",
-			"allow": [
-				{
-					"path": "$HOME/**/*.(db|db3|s3db|sl3|sqlite|sqlite3)"
-				}
-			]
-		},
-		{
-			"identifier": "fs:allow-read-text-file",
-			"allow": [
-				{
-					"path": "$HOME/**/*.json"
-				},
-				{
-					"path": "$APPDATA/**/*.env"
-				}
-			]
-		},
-		{
-			"identifier": "fs:scope",
-			"allow": [
-				{
-					"path": "**/.sqratch",
-					"recursive": true
-				},
-				{
-					"path": "**",
-					"recursive": false
-				},
-				{
-					"path": "$HOME",
-					"recursive": true
-				},
-				{
-					"path": "$USERPROFILE",
-					"recursive": true
-				},
-				{
-					"path": "$APPDATA",
-					"recursive": true
-				}
-			]
-		},
-		"core:window:allow-close",
-		"core:window:allow-center",
-		"core:window:allow-minimize",
-		"core:window:allow-maximize",
-		"core:window:allow-set-size",
-		"core:window:allow-set-focus",
-		"core:window:allow-is-maximized",
-		"core:window:allow-start-dragging",
-		"core:window:allow-toggle-maximize"
-	]
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
+  ],
+  "windows": [
+    "*"
+  ],
+  "permissions": [
+    "core:default",
+    "core:app:allow-version",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:event:allow-emit",
+    "opener:default",
+    "window-state:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        {
+          "path": "$HOME/**/*.(db|db3|s3db|sl3|sqlite|sqlite3)"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        {
+          "path": "$HOME/**/*.json"
+        },
+        {
+          "path": "$APPDATA/**/*.env"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "**/.sqratch",
+          "recursive": true
+        },
+        {
+          "path": "**",
+          "recursive": false
+        },
+        {
+          "path": "$HOME",
+          "recursive": true
+        },
+        {
+          "path": "$USERPROFILE",
+          "recursive": true
+        },
+        {
+          "path": "$APPDATA",
+          "recursive": true
+        }
+      ]
+    },
+    "core:window:allow-close",
+    "core:window:allow-center",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-set-size",
+    "core:window:allow-set-focus",
+    "core:window:allow-is-maximized",
+    "core:window:allow-start-dragging",
+    "core:window:allow-toggle-maximize",
+    "log:default"
+  ]
 }

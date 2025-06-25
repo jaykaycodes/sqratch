@@ -1,35 +1,58 @@
+import React from 'react'
+
 import { type ItemInstance, selectionFeature, syncDataLoaderFeature } from '@headless-tree/core'
 import { useTree } from '@headless-tree/react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 
 import Icons from '#/components/icons'
+import { useDoubleClick } from '#/lib/hooks/use-double-click'
 import Q from '#/lib/queries'
 import type { DbEntity } from '#/lib/taurpc'
 import { cn } from '#/lib/utils'
-import uiStore$ from '#/stores/ui-store'
+import DetailsPanelStore$ from '#/stores/details-panel-store'
+import EditorStore$ from '#/stores/editor-store'
 
 const rootItemId = '__root'
 
 export default function DatabaseTab() {
 	const entitiesQuery = useSuspenseQuery(Q.db.entities)
 
+	// Handle single click: select item in details panel
+	const handleSingleClick = React.useCallback((item: ItemInstance<DbEntity>) => {
+		const entity = item.getItemData()
+		DetailsPanelStore$.selectItem({
+			type: 'entity',
+			id: entity.id,
+		})
+	}, [])
+
+	// Handle double click: could expand/collapse folders or open in editor
+	const handleDoubleClick = React.useCallback((item: ItemInstance<DbEntity>) => {
+		const entity = item.getItemData()
+
+		if (item.isFolder()) {
+			// Toggle folder expansion on double click
+			// if (item.isExpanded()) {
+			// 	item.collapse()
+			// } else {
+			// 	item.expand()
+			// }
+		} else {
+			EditorStore$.openTab('entity', entity.id, entity.name)
+		}
+	}, [])
+
+	const { handleClick: onPrimaryAction } = useDoubleClick(
+		handleSingleClick,
+		handleDoubleClick,
+		{ delay: 250 }, // Slightly faster response than default
+	)
+
 	const tree = useTree<DbEntity>({
 		rootItemId,
 		getItemName: (item) => item.getItemData().name,
 		isItemFolder: (item) => item.getItemData().kind === 'Schema',
-		onPrimaryAction(item) {
-			const entity = item.getItemData()
-			if (entity.kind === 'Schema') {
-				uiStore$.detailsPanel.activeSchema.set(null)
-			}
-
-			if (entity.kind !== 'Schema') {
-				const schema = entitiesQuery.data.find((e) => e.id === entity.schemaId)
-				if (schema) {
-					uiStore$.detailsPanel.activeSchema.set(schema)
-				}
-			}
-		},
+		onPrimaryAction,
 		dataLoader: {
 			getItem: (itemId) => {
 				const item = entitiesQuery.data.find((e) => e.id === itemId)

@@ -21,7 +21,7 @@ export function parseConnectionString(connectionString: string) {
 			password: url.password,
 		}
 	} catch (error) {
-		throw new Error('Invalid connection string format')
+		throw new Error(`Invalid connection string format: ${connectionString}\n${error}`)
 	}
 }
 

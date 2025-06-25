@@ -1,7 +1,9 @@
+import React from 'react'
+
 import { $React } from '@legendapp/state/react-web'
 
 import { cn } from '#/lib/utils'
-import ui$ from '#/stores/ui-store'
+import WorkbenchStore$ from '#/stores/workbench-store'
 
 import DatabaseTab from './database-tab'
 import { WORKBENCH_TABS, type WorkbenchTab } from './misc'
@@ -10,35 +12,37 @@ export * from './misc'
 
 export default function ProjectWorkbench() {
 	return (
-		<div className="flex flex-col h-full gap-2">
-			<div className="tabs tabs-border w-full overflow-auto justify-center">
+		<div className="flex flex-col h-full gap-1 pt-1">
+			<div className="tabs tabs-border tabs-sm w-full overflow-auto justify-center">
 				{WORKBENCH_TABS.map((tab) => (
-					<label className="tab" key={tab.label}>
-						<$React.input
-							$checked={() => ui$.workbench.activeTab.get() === tab.label}
-							aria-label={tab.label}
-							name="workbench-tab"
-							onChange={(e) => {
-								if (e.target.checked) ui$.workbench.activeTab.set(tab.label)
-							}}
-							type="radio"
-						/>
-						<tab.Icon className="size-5" />
-					</label>
+					<React.Fragment key={tab.label}>
+						<label className="tab" key={tab.label}>
+							<$React.input
+								$checked={() => WorkbenchStore$.activeTab.get() === tab.label}
+								aria-label={tab.label}
+								name="workbench-tab"
+								onChange={(e) => {
+									if (e.target.checked) WorkbenchStore$.activeTab.set(tab.label)
+								}}
+								type="radio"
+							/>
+							<tab.Icon className="size-4 p-0" />
+						</label>
+					</React.Fragment>
 				))}
 			</div>
 
-			<WorkbenchTabContent tab="Database" />
-			<WorkbenchTabContent tab="Queries" />
+			<TabContentWrapper tab="Database" />
+			<TabContentWrapper tab="Queries" />
 		</div>
 	)
 }
 
-function WorkbenchTabContent({ tab }: { tab: WorkbenchTab }) {
+function TabContentWrapper({ tab }: { tab: WorkbenchTab }) {
 	return (
 		<$React.div
 			$className={() =>
-				cn('overflow-auto flex-1', tab !== ui$.workbench.activeTab.get() && 'hidden')
+				cn('overflow-auto flex-1', tab !== WorkbenchStore$.activeTab.get() && 'hidden')
 			}
 		>
 			{tab === 'Database' ? <DatabaseTab /> : <QueriesTab />}

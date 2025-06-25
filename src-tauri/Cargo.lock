@@ -3999,9 +3999,9 @@ dependencies = [
 
 [[package]]
 name = "rust_decimal"
-version = "1.37.1"
+version = "1.37.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faa7de2ba56ac291bd90c6b9bece784a52ae1411f9506544b3eae36dd2356d50"
+checksum = "b203a6425500a03e0919c42d3c47caca51e79f1132046626d2c8871c5092035d"
 dependencies = [
  "arrayvec",
  "borsh",
@@ -5175,9 +5175,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-log"
-version = "2.3.1"
+version = "2.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2341d5b9bc5318c8e34f35a569140c78337241aa9c14091550b424c49f0314e0"
+checksum = "73d224e9bcb44677d56c422c85a2a345518f1df192acb5f7c1fb5a0c5bc791ee"
 dependencies = [
  "android_logger",
  "byte-unit",

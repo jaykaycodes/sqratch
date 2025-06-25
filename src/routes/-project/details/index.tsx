@@ -1,9 +1,9 @@
 import { use$ } from '@legendapp/state/react'
 
-import uiStore$ from '#/stores/ui-store'
+import GlobalStore$ from '#/stores/global-store'
 
 export default function ProjectDetails() {
-	const detailsState = use$(uiStore$.detailsPanel)
+	const detailsState = use$(GlobalStore$.detailsPanel)
 	console.log(detailsState)
 
 	return (

@@ -4,7 +4,7 @@ import { enableReactTracking } from '@legendapp/state/config/enableReactTracking
 import { Show } from '@legendapp/state/react'
 import { useHotkeys } from 'react-hotkeys-hook'
 
-import ui$ from '#/stores/ui-store'
+import GlobalStore$ from '#/stores/global-store'
 
 // Enable React tracking for debugging
 enableReactTracking({
@@ -29,10 +29,10 @@ const TanStackQueryDevtools = import.meta.env.PROD
 		)
 
 export default function DevTools() {
-	useHotkeys('shift+meta+.', () => ui$.devMode.toggle(), { preventDefault: true }, [])
+	useHotkeys('shift+meta+.', () => GlobalStore$.devMode.toggle(), { preventDefault: true }, [])
 
 	return (
-		<Show if={ui$.devMode} wrap={React.Suspense}>
+		<Show if={GlobalStore$.devMode} wrap={React.Suspense}>
 			<TanStackRouterDevtools />
 			<TanStackQueryDevtools />
 		</Show>

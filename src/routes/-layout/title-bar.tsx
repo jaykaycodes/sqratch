@@ -1,12 +1,13 @@
 import { reactive } from '@legendapp/state/react'
 import type { LucideIcon } from 'lucide-react'
 
+import Icons from '#/components/icons'
+import Tooltip from '#/components/ui/tooltip'
 import { useIsProjectRoute } from '#/lib/hooks/use-project'
 import { cn } from '#/lib/utils'
-import ui$ from '#/stores/ui-store'
-
-import Icons from './icons'
-import Tooltip from './ui/tooltip'
+import BottomPanelStore$ from '#/stores/bottom-panel-store'
+import DetailsPanelStore$ from '#/stores/details-panel-store'
+import WorkbenchStore$ from '#/stores/workbench-store'
 
 export default function TitleBar() {
 	const isProject = useIsProjectRoute()
@@ -49,22 +50,22 @@ function ProjectActions() {
 	return (
 		<>
 			<ActionButton
-				$isActive={ui$.workbench.open}
-				$label={() => (ui$.workbench.open.get() ? 'Hide Left Panel' : 'Show Left Panel')}
+				$isActive={WorkbenchStore$.open}
+				$label={() => (WorkbenchStore$.open.get() ? 'Hide Left Panel' : 'Show Left Panel')}
 				Icon={Icons.PanelLeft}
-				onClick={() => ui$.workbench.open.toggle()}
+				onClick={() => WorkbenchStore$.open.toggle()}
 			/>
 			<ActionButton
-				$isActive={ui$.bottomPanel.open}
-				$label={() => (ui$.bottomPanel.open.get() ? 'Hide Bottom Panel' : 'Show Bottom Panel')}
+				$isActive={BottomPanelStore$.open}
+				$label={() => (BottomPanelStore$.open.get() ? 'Hide Bottom Panel' : 'Show Bottom Panel')}
 				Icon={Icons.PanelBottom}
-				onClick={() => ui$.bottomPanel.open.toggle()}
+				onClick={() => BottomPanelStore$.open.toggle()}
 			/>
 			<ActionButton
-				$isActive={ui$.detailsPanel.open}
-				$label={() => (ui$.detailsPanel.open.get() ? 'Hide Right Panel' : 'Show Right Panel')}
+				$isActive={DetailsPanelStore$.open}
+				$label={() => (DetailsPanelStore$.open.get() ? 'Hide Right Panel' : 'Show Right Panel')}
 				Icon={Icons.PanelRight}
-				onClick={() => ui$.detailsPanel.open.toggle()}
+				onClick={() => DetailsPanelStore$.open.toggle()}
 			/>
 		</>
 	)

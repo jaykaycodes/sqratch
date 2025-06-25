@@ -5,7 +5,7 @@ import { Allotment, LayoutPriority } from 'allotment'
 import Q from '#/lib/queries'
 import { queryClient, taurpc } from '#/lib/utils'
 import StatusBar from '#/routes/-project/status-bar'
-import uiStore$ from '#/stores/ui-store'
+import GlobalStore$ from '#/stores/global-store'
 
 import ProjectDetails from './-project/details'
 import ProjectWorkbench from './-project/workbench'
@@ -19,8 +19,8 @@ export const Route = createFileRoute('/project')({
 })
 
 function ProjectLayout() {
-	const isDetailsVisible = use$(uiStore$.detailsPanel.open)
-	const isWorkbenchVisible = use$(uiStore$.workbench.open)
+	const isDetailsVisible = use$(GlobalStore$.detailsPanel.open)
+	const isWorkbenchVisible = use$(GlobalStore$.workbench.open)
 
 	return (
 		<div className="flex size-full flex-col">
