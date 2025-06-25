@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use url::Url;
 
 use crate::db::errors::{DbError, DbResult};
-use crate::db::types::{Entity, QueryResult};
+use crate::db::types::{DbEntity, QueryResult};
 
 /// Core database client interface for all database operations
 #[async_trait]
@@ -33,7 +33,7 @@ pub trait DatabaseClient: Send + Sync {
     async fn execute_query(&self, sql: &str) -> DbResult<QueryResult>;
 
     /// Get a flat list of all entities including schemas
-    async fn get_all_entities(&self) -> DbResult<Vec<Entity>>;
+    async fn get_all_entities(&self) -> DbResult<Vec<DbEntity>>;
 }
 
 /// Creates a database client based on connection info without establishing a connection

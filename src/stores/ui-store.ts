@@ -1,5 +1,11 @@
 import { observable } from '@legendapp/state'
 
+import type {
+	ColumnDetails,
+	RowDetails,
+	SchemaDetails,
+	TableDetails,
+} from '#/routes/-project/details/types'
 import { WORKBENCH_TABS, type WorkbenchTab } from '#/routes/-project/workbench'
 
 const uiStore$ = observable({
@@ -13,7 +19,10 @@ const uiStore$ = observable({
 	},
 	detailsPanel: {
 		open: true,
-		activeObjectId: undefined as string | undefined,
+		activeSchema: null as SchemaDetails | null,
+		activeTable: null as TableDetails | null,
+		activeColumn: null as ColumnDetails | null,
+		activeRow: null as RowDetails | null,
 	},
 })
 

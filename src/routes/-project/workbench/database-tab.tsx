@@ -4,7 +4,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 
 import Icons from '#/components/icons'
 import Q from '#/lib/queries'
-import type { Entity } from '#/lib/taurpc'
+import type { DbEntity } from '#/lib/taurpc'
 import { cn } from '#/lib/utils'
 import uiStore$ from '#/stores/ui-store'
 
@@ -13,12 +13,22 @@ const rootItemId = '__root'
 export default function DatabaseTab() {
 	const entitiesQuery = useSuspenseQuery(Q.db.entities)
 
-	const tree = useTree<Entity>({
+	const tree = useTree<DbEntity>({
 		rootItemId,
 		getItemName: (item) => item.getItemData().name,
 		isItemFolder: (item) => item.getItemData().kind === 'Schema',
 		onPrimaryAction(item) {
-			uiStore$.detailsPanel.activeObjectId.set(item.getItemData().id)
+			const entity = item.getItemData()
+			if (entity.kind === 'Schema') {
+				uiStore$.detailsPanel.activeSchema.set(null)
+			}
+
+			if (entity.kind !== 'Schema') {
+				const schema = entitiesQuery.data.find((e) => e.id === entity.schemaId)
+				if (schema) {
+					uiStore$.detailsPanel.activeSchema.set(schema)
+				}
+			}
 		},
 		dataLoader: {
 			getItem: (itemId) => {
@@ -34,7 +44,7 @@ export default function DatabaseTab() {
 						.filter(
 							(e) =>
 								((e.kind === 'Schema' && e.id !== publicSchema?.id) ||
-									e.schemaId === publicSchema?.id) &&
+									(e.kind !== 'Schema' && e.schemaId === publicSchema?.id)) &&
 								e.isSystem === false,
 						)
 						.map((e) => e.id)
@@ -54,7 +64,9 @@ export default function DatabaseTab() {
 						})
 				}
 
-				return entitiesQuery.data.filter((e) => e.schemaId === itemId).map((e) => e.id)
+				return entitiesQuery.data
+					.filter((e) => e.kind !== 'Schema' && e.schemaId === itemId)
+					.map((e) => e.id)
 			},
 		},
 		features: [syncDataLoaderFeature, selectionFeature],
@@ -72,7 +84,7 @@ export default function DatabaseTab() {
 	)
 }
 
-function TreeRow({ item }: { item: ItemInstance<Entity> }) {
+function TreeRow({ item }: { item: ItemInstance<DbEntity> }) {
 	const level = item.getItemMeta().level
 
 	return (

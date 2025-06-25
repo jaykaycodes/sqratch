@@ -1,4 +1,11 @@
+import { use$ } from '@legendapp/state/react'
+
+import uiStore$ from '#/stores/ui-store'
+
 export default function ProjectDetails() {
+	const detailsState = use$(uiStore$.detailsPanel)
+	console.log(detailsState)
+
 	return (
 		<div className="flex w-full h-full flex-col">
 			<div className="flex h-9 items-center justify-between border-b px-4">

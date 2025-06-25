@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 
+docs/rules/business.md
+
 .env*
 !.env.example
 
@@ -30,4 +32,3 @@ routeTree.gen.ts
 src/lib/taurpc.ts
 
 TODO.md
-.windsurfrules

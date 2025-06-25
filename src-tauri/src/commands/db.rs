@@ -1,7 +1,7 @@
 use tauri::{Runtime, Window};
 use taurpc;
 
-use crate::db::types::{Entity, QueryResult};
+use crate::db::types::{DbEntity, QueryResult};
 use crate::errors::AppError;
 use crate::state::get_window_client;
 
@@ -27,7 +27,7 @@ pub trait DbApi {
     ) -> Result<QueryResult, AppError>;
 
     // Get all entities including schemas as a flat list
-    async fn get_all_entities(window: Window<impl Runtime>) -> Result<Vec<Entity>, AppError>;
+    async fn get_all_entities(window: Window<impl Runtime>) -> Result<Vec<DbEntity>, AppError>;
 }
 
 #[derive(Clone)]
@@ -68,7 +68,10 @@ impl DbApi for DbApiImpl {
         Ok(guard.execute_query(&query).await?)
     }
 
-    async fn get_all_entities(self, window: Window<impl Runtime>) -> Result<Vec<Entity>, AppError> {
+    async fn get_all_entities(
+        self,
+        window: Window<impl Runtime>,
+    ) -> Result<Vec<DbEntity>, AppError> {
         let client = get_window_client(&window)?;
         let mut guard = client.lock().await;
 

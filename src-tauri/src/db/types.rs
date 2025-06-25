@@ -69,241 +69,79 @@ impl From<Row> for HashMap<String, serde_json::Value> {
     }
 }
 
-/// Result of a paginated rows query
-#[taurpc::ipc_type]
-#[derive(Debug)]
-pub struct PaginatedRowsResult {
-    /// The rows returned from the query
-    pub rows: Vec<Row>,
-    /// The total number of rows in the table
-    pub total_rows: u64,
-    /// The current page index
-    pub page_index: u16,
-    /// The number of rows per page
-    pub page_size: u32,
-    /// The total number of pages
-    pub total_pages: u32,
-}
-
-/// Database column data type category for UI display
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
-pub enum ColumnTypeCategory {
-    Text,
-    Numeric,
-    Boolean,
-    Date,
-    DateTime,
-    Time,
-    Binary,
-    Json,
-    Array,
-    Enum,
-    Geometry,
-    Network,
-    UUID,
-    Other,
-}
-
-/// Constraint type
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
-pub enum ConstraintType {
-    PrimaryKey,
-    ForeignKey,
-    Unique,
-    Check,
-    Exclusion,
-}
-
-/// Foreign key reference
-#[taurpc::ipc_type]
+/// Schema entity properties
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
-#[derive(Debug)]
-pub struct ForeignKeyReference {
-    /// Referenced schema
-    pub referenced_schema: String,
-    /// Referenced table
-    pub referenced_table: String,
-    /// Referenced column
-    pub referenced_column: String,
-    /// On update action
-    pub on_update: Option<String>,
-    /// On delete action
-    pub on_delete: Option<String>,
-}
-
-/// Database constraint
-#[taurpc::ipc_type]
-#[serde(rename_all = "camelCase")]
-#[derive(Debug)]
-pub struct ConstraintInfo {
-    /// Constraint name
-    pub name: String,
-    /// Constraint type
-    pub constraint_type: ConstraintType,
-    /// Table name
-    pub table_name: String,
-    /// Schema name
-    pub schema_name: String,
-    /// Column names involved in the constraint
-    pub column_names: Vec<String>,
-    /// Foreign key reference (only for foreign keys)
-    pub foreign_key_reference: Option<ForeignKeyReference>,
-    /// Check constraint definition (only for check constraints)
-    pub check_definition: Option<String>,
-}
-
-/// Index information
-#[taurpc::ipc_type]
-#[serde(rename_all = "camelCase")]
-#[derive(Debug)]
-pub struct IndexInfo {
-    /// Index name
-    pub name: String,
-    /// Schema name
-    pub schema: String,
-    /// Table name
-    pub table: String,
-    /// Is it a unique index
-    pub is_unique: bool,
-    /// Is it a primary key index
-    pub is_primary: bool,
-    /// Column names in the index
-    pub column_names: Vec<String>,
-    /// Index method (btree, hash, etc.)
-    pub method: Option<String>,
-}
-
-/// Column information with detailed metadata for UI display
-#[taurpc::ipc_type]
-#[serde(rename_all = "camelCase")]
-#[derive(Debug)]
-pub struct ColumnInfo {
-    /// Column name
-    pub name: String,
-    /// Database-specific data type string
-    pub data_type: String,
-    /// Standardized column type category for UI
-    pub type_category: ColumnTypeCategory,
-    /// Whether the column can be null
-    pub nullable: bool,
-    /// Whether the column is a primary key
-    pub primary_key: bool,
-    /// Whether the column auto-increments
-    pub auto_increment: bool,
-    /// Whether the column is indexed
-    pub indexed: bool,
-    /// Whether the column has a unique constraint
-    pub unique: bool,
-    /// Character maximum length for text types
-    pub char_max_length: Option<u32>,
-    /// Numeric precision for numeric types
-    pub numeric_precision: Option<u32>,
-    /// Numeric scale for numeric types
-    pub numeric_scale: Option<u32>,
-    /// Default value for the column
-    pub default_value: Option<String>,
-    /// Column comment/description
-    pub comment: Option<String>,
-    /// Column position in the table
-    pub position: Option<u32>,
-    /// Column foreign key relationship
-    pub foreign_key: Option<ForeignKeyReference>,
-    /// UI display format hint
-    pub display_hint: Option<String>,
-}
-
-/// Table information with detailed metadata
-#[taurpc::ipc_type]
-#[serde(rename_all = "camelCase")]
-#[derive(Debug)]
-pub struct TableInfo {
-    /// Table name
-    pub name: String,
-    /// Schema name
-    pub schema: String,
-    /// Table columns
-    pub columns: Vec<ColumnInfo>,
-    /// Table constraints
-    pub constraints: Vec<ConstraintInfo>,
-    /// Table indices
-    pub indices: Vec<IndexInfo>,
-    /// Primary key column names
-    pub primary_key_columns: Vec<String>,
-    /// Table row count estimate
-    pub row_count_estimate: Option<u64>,
-    /// Table size estimate in bytes
-    pub size_bytes: Option<u64>,
-    /// Table comment/description
-    pub comment: Option<String>,
-    /// Last modified timestamp
-    pub last_modified: Option<u64>,
-}
-
-/// View information
-#[taurpc::ipc_type]
-#[serde(rename_all = "camelCase")]
-#[derive(Debug)]
-pub struct ViewInfo {
-    /// View name
-    pub name: String,
-    /// Schema name
-    pub schema: String,
-    /// View columns
-    pub columns: Vec<ColumnInfo>,
-    /// View definition
-    pub definition: Option<String>,
-    /// View comment/description
-    pub comment: Option<String>,
-    /// Whether this is a materialized view
-    pub materialized: bool,
-    /// View row count estimate
-    pub row_estimate: f64,
-}
-
-/// Function information
-#[taurpc::ipc_type]
-#[serde(rename_all = "camelCase")]
-#[derive(Debug)]
-pub struct FunctionInfo {
-    /// Function name
-    pub name: String,
-    /// Schema name
-    pub schema: String,
-    /// Function arguments
-    pub arguments: Vec<String>,
-    /// Function return type
-    pub return_type: Option<String>,
-    /// Function definition
-    pub definition: Option<String>,
-}
-
-/// Entities that can live on a schema
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
-pub enum EntityKind {
-    Schema,
-    Table,
-    ForeignTable,
-    View,
-    MaterializedView,
-    Function,
-    Procedure,
-    Sequence,
-    Type,
-}
-
-/// A database entity which can be a schema or entity within a schema
-#[taurpc::ipc_type]
-#[serde(rename_all = "camelCase")]
-#[derive(Debug)]
-pub struct Entity {
-    /// Entity ID
+pub struct SchemaEntity {
     pub id: String,
-    /// Entity name
     pub name: String,
-    /// Entity type - Schema entities have their own type
-    pub kind: EntityKind,
-    /// Parent schema ID (null for schema entities or non-PG databases)
-    pub schema_id: Option<String>,
-    /// Whether this is a system entity
     pub is_system: bool,
+    pub extension_name: Option<String>,
+}
+
+/// Schema-level entity properties (entities that belong to a schema)
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaLevelEntity {
+    pub id: String,
+    pub name: String,
+    pub is_system: bool,
+    pub extension_name: Option<String>,
+    pub schema_id: String,
+}
+
+/// Table-like entity properties (tables, views, etc. with rows/columns)
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TableLikeEntity {
+    pub id: String,
+    pub name: String,
+    pub is_system: bool,
+    pub extension_name: Option<String>,
+    pub schema_id: String,
+    pub size_bytes_estimate: u64,
+    pub row_count_estimate: u64,
+    pub column_count: u32,
+}
+
+/// Index entity properties
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexEntity {
+    pub id: String,
+    pub name: String,
+    pub is_system: bool,
+    pub extension_name: Option<String>,
+    pub schema_id: String,
+    pub table_name: String,
+    pub size_bytes_estimate: u64,
+}
+
+/// Trigger entity properties
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TriggerEntity {
+    pub id: String,
+    pub name: String,
+    pub is_system: bool,
+    pub extension_name: Option<String>,
+    pub schema_id: String,
+    pub table_name: String,
+}
+
+/// Database entity discriminated union
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(tag = "kind")]
+pub enum DbEntity {
+    Schema(SchemaEntity),
+    Table(TableLikeEntity),
+    View(TableLikeEntity),
+    MaterializedView(TableLikeEntity),
+    Function(SchemaLevelEntity),
+    Procedure(SchemaLevelEntity),
+    Sequence(SchemaLevelEntity),
+    CustomType(SchemaLevelEntity),
+    Index(IndexEntity),
+    Trigger(TriggerEntity),
+    ForeignTable(TableLikeEntity),
 }

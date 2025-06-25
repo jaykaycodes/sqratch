@@ -4,8 +4,8 @@ import React from 'react'
 
 import {
 	createRouter,
-	ErrorComponent,
 	parseSearchWith,
+	ErrorComponent,
 	RouterProvider,
 	stringifySearchWith,
 } from '@tanstack/react-router'

@@ -1,0 +1,43 @@
+# Sqratch
+
+Sqratch is a desktop sql database gui, a la Postico/Tableplus/Beekeeper Studio. Refer to [business.md](./docs/rules/business.md) for more context on the business goals.
+
+It's main goal is to be well-integrated inside modern web developers' stacks (deep integrations into VSCode, Drizzle, Prisma, CLI, their codebase, etc).
+
+## Core Values
+
+Performance. UX & DX. Simplicity.
+
+# Tech Stack
+
+## Tauri
+
+- This app is built with Tauri v2. Refer to the tauri docs for the latest on how to use Tauri. IMPORTANT: MAKE SURE TO REFER TO THE NEW V2 API.
+- Use Bun as our main package manager and for running tauri commands and maintaining node modules. Also for scripting. Prefer Bun conventions and imports over older node ones.
+
+## React
+
+### General
+
+- use `#/` to import anything from the root `src/` dir (not `@/`)
+- always use the default synthetic `import React from 'react'` and react utilities as e.g. `React.useMemo` instead of importing `useMemo` from `'react'`.
+- always import icons using `import Icons from '#/components/icons'` (they are lucide icons)
+
+### Project Structure
+
+- src/components - shared components that span multiple routes/features
+- src/lib - shared libraries
+- src/routes - tanstack router routes folder. files & dirs prefixed with `-` are ignored by router and used to store components & helpers for that route.
+- src/stores - global state management
+
+### Libraries
+
+Always leverage libraries for common tasks. Recommend libraries when it will save time, for instance if implementing a table component, suggest TanStack Table.
+
+- UI: [DaisyUI](https://daisyui.com/) (docs are stored locally at [daisyui.md](./docs/rules/daisyui.md))
+- State Management: [LegendApp State](https://legendapp.com/open-source/state/v3/intro/introduction/)
+- Routing: [TanStack Router](https://tanstack.com/router/latest/docs/framework/react/getting-started)
+- Data Fetching: [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/getting-started)
+- Tauri Communication: [TauRPC](https://github.com/MatsDK/TauRPC)
+- Table: [TanStack Table](https://tanstack.com/table/latest/docs/framework/react/getting-started)
+- Dates: [date-fns](https://date-fns.org/) (import as `import * as datefns from 'date-fns'`)

@@ -1,6 +1,6 @@
-# Sqratch - Modern SQL Client
+# sqratch - modern sql gui and db management
 
-Sqratch is a high-performance SQL client and database management tool built with Tauri, React, and TypeScript. It aims to modernize database workflows with AI-powered features, intuitive filtering, and seamless collaboration.
+Sqratch is a new SQL gui built for modern dev. Think Airtable for devs. If you need advanced DBA tools, TablePlus/DBeaver might be better for you. If you want to quickly grok what's in your database, quickly navigate between relations, view data with a type-aware UI, spin up internal dashboards with a click, and use modern AI to write scripts and debug issues, then you're in the right place.
 
 ## Features
 
