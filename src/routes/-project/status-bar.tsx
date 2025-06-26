@@ -1,8 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 
 import DivButton from '#/components/div-button'
 import Tooltip from '#/components/ui/tooltip'
-import { useProject } from '#/lib/hooks/use-project'
 import Q from '#/lib/queries'
 import { cn, copyToClipboard } from '#/lib/utils'
 
@@ -15,7 +14,7 @@ export default function StatusBar() {
 }
 
 function ConnectionStatusItem() {
-	const project = useProject()
+	const { data: project } = useSuspenseQuery(Q.project.get)
 
 	const { data: isConnected, isLoading } = useQuery({
 		...Q.db.isConnected,

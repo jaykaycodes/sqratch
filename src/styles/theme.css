@@ -1,3 +1,5 @@
+@plugin 'tailwind-scrollbar';
+
 @plugin "daisyui" {
   themes:
     light --default,

@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 
 import { $React } from '@legendapp/state/react-web'
 
+import { DefaultPending } from '#/components/default-screens'
 import { cn } from '#/lib/utils'
 import WorkbenchStore$ from '#/stores/workbench-store'
 
@@ -45,7 +46,9 @@ function TabContentWrapper({ tab }: { tab: WorkbenchTab }) {
 				cn('overflow-auto flex-1', tab !== WorkbenchStore$.activeTab.get() && 'hidden')
 			}
 		>
-			{tab === 'Database' ? <DatabaseTab /> : <QueriesTab />}
+			<Suspense fallback={<DefaultPending showText={false} />}>
+				{tab === 'Database' ? <DatabaseTab /> : <QueriesTab />}
+			</Suspense>
 		</$React.div>
 	)
 }

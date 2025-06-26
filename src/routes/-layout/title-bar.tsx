@@ -3,7 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 
 import Icons from '#/components/icons'
 import Tooltip from '#/components/ui/tooltip'
-import { useIsProjectRoute } from '#/lib/hooks/use-project'
+import { useIsProjectRoute } from '#/lib/hooks/use-route-helpers'
 import { cn } from '#/lib/utils'
 import BottomPanelStore$ from '#/stores/bottom-panel-store'
 import DetailsPanelStore$ from '#/stores/details-panel-store'

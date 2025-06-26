@@ -9,10 +9,7 @@ use std::collections::HashMap;
 use crate::db::{
     client::DatabaseClient,
     errors::{DbError, DbResult},
-    types::{
-        ColumnDefinition, DbEntity, IndexEntity, QueryResult, Row, SchemaEntity, SchemaLevelEntity,
-        TableLikeEntity, TriggerEntity,
-    },
+    types::{ColumnDefinition, DbEntity, QueryResult, Row, SchemaEntity, SchemaLevelEntity},
 };
 
 pub struct PostgresClient {
@@ -63,7 +60,7 @@ impl DatabaseClient for PostgresClient {
 
         // Create a new pool
         let pool = PgPoolOptions::new()
-            .max_connections(5)
+            .max_connections(10)
             .connect(&self.connection_string)
             .await?;
 
@@ -152,15 +149,16 @@ impl DatabaseClient for PostgresClient {
         })
     }
 
-    async fn get_all_entities(&self) -> DbResult<Vec<DbEntity>> {
+    async fn get_all_entities(&self) -> DbResult<HashMap<String, DbEntity>> {
         let pool = self.get_pool()?;
-        let mut entities = Vec::new();
+        let mut entities = HashMap::new();
+        let mut schema_children_map: HashMap<String, Vec<String>> = HashMap::new();
 
-        // 1. Query for schemas
+        // Query 1: Get all schemas
         let schema_query = r#"
             SELECT
-                n.oid::TEXT AS id,
-                n.nspname AS name,
+                n.oid::TEXT AS schema_id,
+                n.nspname AS schema_name,
                 CASE
                     WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
                          OR n.nspname LIKE 'pg_%'
@@ -176,283 +174,249 @@ impl DatabaseClient for PostgresClient {
 
         let schema_rows = sqlx::query(schema_query).fetch_all(pool).await?;
         for row in schema_rows {
-            let id: String = row.get("id");
-            let name: String = row.get("name");
+            let id: String = row.get("schema_id");
+            let name: String = row.get("schema_name");
             let is_system: bool = row.get("is_system");
             let extension_name: Option<String> = row.get("extension_name");
 
-            entities.push(DbEntity::Schema(SchemaEntity {
-                id,
-                name,
-                is_system,
-                extension_name,
-            }));
+            schema_children_map.insert(id.clone(), Vec::new());
+            entities.insert(
+                id.clone(),
+                DbEntity::Schema(SchemaEntity {
+                    id,
+                    name,
+                    is_system,
+                    extension_name,
+                    children: Vec::new(),
+                }),
+            );
         }
 
-        // 2. Query for tables, views, materialized views, foreign tables with stats
-        let table_like_query = r#"
+        // Query 2: Get tables, views, materialized views, foreign tables
+        let class_query = r#"
             SELECT
                 c.oid::TEXT AS id,
                 c.relname AS name,
-                n.oid::TEXT AS schema_id,
                 c.relkind::TEXT AS kind,
+                n.oid::TEXT AS schema_id,
                 CASE
                     WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
                          OR n.nspname LIKE 'pg_%'
                     THEN true
                     ELSE false
                 END AS is_system,
-                e.extname AS extension_name,
-                COALESCE(s.n_tup_ins + s.n_tup_upd + s.n_tup_del + s.n_live_tup + s.n_dead_tup, 0)::BIGINT AS row_count_estimate,
-                pg_total_relation_size(c.oid)::BIGINT AS size_bytes_estimate,
-                COALESCE((SELECT COUNT(*) FROM pg_attribute WHERE attrelid = c.oid AND attnum > 0 AND NOT attisdropped), 0)::INT AS column_count
+                e.extname AS extension_name
             FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
-            LEFT JOIN pg_depend d ON d.objid = c.oid AND d.deptype = 'e'
+            JOIN pg_namespace n ON c.relnamespace = n.oid
+            LEFT JOIN pg_depend d ON d.objid = n.oid AND d.deptype = 'e'
             LEFT JOIN pg_extension e ON e.oid = d.refobjid
-            WHERE c.relkind IN ('r', 'v', 'm', 'f') -- tables, views, materialized views, foreign tables
+            WHERE c.relkind IN ('r', 'v', 'm', 'f', 'S')
             ORDER BY n.nspname, c.relname
         "#;
 
-        let table_rows = sqlx::query(table_like_query).fetch_all(pool).await?;
-        for row in table_rows {
+        let class_rows = sqlx::query(class_query).fetch_all(pool).await?;
+        for row in class_rows {
             let id: String = row.get("id");
             let name: String = row.get("name");
-            let schema_id: String = row.get("schema_id");
             let kind: String = row.get("kind");
+            let schema_id: String = row.get("schema_id");
             let is_system: bool = row.get("is_system");
             let extension_name: Option<String> = row.get("extension_name");
-            let row_count_estimate: i64 = row.get("row_count_estimate");
-            let size_bytes_estimate: i64 = row.get("size_bytes_estimate");
-            let column_count: i32 = row.get("column_count");
 
-            let table_like = TableLikeEntity {
-                id,
+            if let Some(children) = schema_children_map.get_mut(&schema_id) {
+                children.push(id.clone());
+            }
+
+            let schema_level = SchemaLevelEntity {
+                id: id.clone(),
                 name,
                 is_system,
-                extension_name,
                 schema_id,
-                size_bytes_estimate: size_bytes_estimate.max(0) as u64,
-                row_count_estimate: row_count_estimate.max(0) as u64,
-                column_count: column_count.max(0) as u32,
+                extension_name,
             };
 
             let entity = match kind.as_str() {
-                "r" => DbEntity::Table(table_like.clone()),
-                "v" => DbEntity::View(table_like.clone()),
-                "m" => DbEntity::MaterializedView(table_like.clone()),
-                "f" => DbEntity::ForeignTable(table_like.clone()),
+                "r" => DbEntity::Table(schema_level),
+                "v" => DbEntity::View(schema_level),
+                "m" => DbEntity::MaterializedView(schema_level),
+                "f" => DbEntity::ForeignTable(schema_level),
+                // "S" => DbEntity::Sequence(schema_level),
                 _ => continue,
             };
 
-            entities.push(entity);
+            entities.insert(id, entity);
         }
 
-        // 3. Query for functions and procedures
-        let function_query = r#"
-            SELECT
-                p.oid::TEXT AS id,
-                p.proname AS name,
-                n.oid::TEXT AS schema_id,
-                CASE
-                    WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
-                         OR n.nspname LIKE 'pg_%'
-                    THEN true
-                    ELSE false
-                END AS is_system,
-                e.extname AS extension_name,
-                CASE
-                    WHEN p.prokind = 'p' THEN 'procedure'
-                    ELSE 'function'
-                END AS func_type
-            FROM pg_proc p
-            JOIN pg_namespace n ON n.oid = p.pronamespace
-            LEFT JOIN pg_depend d ON d.objid = p.oid AND d.deptype = 'e'
-            LEFT JOIN pg_extension e ON e.oid = d.refobjid
-            ORDER BY n.nspname, p.proname
-        "#;
+        // Query 3: Get functions and procedures
+        // let proc_query = r#"
+        //     SELECT
+        //         p.oid::TEXT AS id,
+        //         p.proname AS name,
+        //         n.oid::TEXT AS schema_id,
+        //         CASE
+        //             WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
+        //                  OR n.nspname LIKE 'pg_%'
+        //             THEN true
+        //             ELSE false
+        //         END AS is_system,
+        //         e.extname AS extension_name
+        //     FROM pg_proc p
+        //     JOIN pg_namespace n ON p.pronamespace = n.oid
+        //     LEFT JOIN pg_depend d ON d.objid = n.oid AND d.deptype = 'e'
+        //     LEFT JOIN pg_extension e ON e.oid = d.refobjid
+        //     ORDER BY n.nspname, p.proname
+        // "#;
 
-        let func_rows = sqlx::query(function_query).fetch_all(pool).await?;
-        for row in func_rows {
-            let id: String = row.get("id");
-            let name: String = row.get("name");
-            let schema_id: String = row.get("schema_id");
-            let is_system: bool = row.get("is_system");
-            let extension_name: Option<String> = row.get("extension_name");
-            let func_type: String = row.get("func_type");
+        // let proc_rows = sqlx::query(proc_query).fetch_all(pool).await?;
+        // for row in proc_rows {
+        //     let id: String = row.get("id");
+        //     let name: String = row.get("name");
+        //     let schema_id: String = row.get("schema_id");
+        //     let is_system: bool = row.get("is_system");
+        //     let extension_name: Option<String> = row.get("extension_name");
 
-            let schema_level = SchemaLevelEntity {
-                id,
-                name,
-                is_system,
-                extension_name,
-                schema_id,
-            };
+        //     if let Some(children) = schema_children_map.get_mut(&schema_id) {
+        //         children.push(id.clone());
+        //     }
 
-            let entity = match func_type.as_str() {
-                "procedure" => DbEntity::Procedure(schema_level),
-                _ => DbEntity::Function(schema_level),
-            };
+        //     entities.insert(
+        //         id.clone(),
+        //         DbEntity::Function(SchemaLevelEntity {
+        //             id,
+        //             name,
+        //             is_system,
+        //             schema_id,
+        //             extension_name,
+        //             children: Vec::new(),
+        //         }),
+        //     );
+        // }
 
-            entities.push(entity);
-        }
+        // // Query 4: Get custom types
+        // let type_query = r#"
+        //     SELECT
+        //         t.oid::TEXT AS id,
+        //         t.typname AS name,
+        //         n.oid::TEXT AS schema_id,
+        //         CASE
+        //             WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
+        //                  OR n.nspname LIKE 'pg_%'
+        //             THEN true
+        //             ELSE false
+        //         END AS is_system,
+        //         e.extname AS extension_name
+        //     FROM pg_type t
+        //     JOIN pg_namespace n ON t.typnamespace = n.oid
+        //     LEFT JOIN pg_depend d ON d.objid = n.oid AND d.deptype = 'e'
+        //     LEFT JOIN pg_extension e ON e.oid = d.refobjid
+        //     WHERE t.typtype NOT IN ('b', 'p')  -- Exclude built-in and pseudo types
+        //     ORDER BY n.nspname, t.typname
+        // "#;
 
-        // 4. Query for sequences
-        let sequence_query = r#"
-            SELECT
-                c.oid::TEXT AS id,
-                c.relname AS name,
-                n.oid::TEXT AS schema_id,
-                CASE
-                    WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
-                         OR n.nspname LIKE 'pg_%'
-                    THEN true
-                    ELSE false
-                END AS is_system,
-                e.extname AS extension_name
-            FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            LEFT JOIN pg_depend d ON d.objid = c.oid AND d.deptype = 'e'
-            LEFT JOIN pg_extension e ON e.oid = d.refobjid
-            WHERE c.relkind = 'S' -- sequences
-            ORDER BY n.nspname, c.relname
-        "#;
+        // let type_rows = sqlx::query(type_query).fetch_all(pool).await?;
+        // for row in type_rows {
+        //     let id: String = row.get("id");
+        //     let name: String = row.get("name");
+        //     let schema_id: String = row.get("schema_id");
+        //     let is_system: bool = row.get("is_system");
+        //     let extension_name: Option<String> = row.get("extension_name");
 
-        let seq_rows = sqlx::query(sequence_query).fetch_all(pool).await?;
-        for row in seq_rows {
-            let id: String = row.get("id");
-            let name: String = row.get("name");
-            let schema_id: String = row.get("schema_id");
-            let is_system: bool = row.get("is_system");
-            let extension_name: Option<String> = row.get("extension_name");
+        //     if let Some(children) = schema_children_map.get_mut(&schema_id) {
+        //         children.push(id.clone());
+        //     }
 
-            entities.push(DbEntity::Sequence(SchemaLevelEntity {
-                id,
-                name,
-                is_system,
-                extension_name,
-                schema_id,
-            }));
-        }
+        //     entities.insert(
+        //         id.clone(),
+        //         DbEntity::CustomType(SchemaLevelEntity {
+        //             id,
+        //             name,
+        //             is_system,
+        //             schema_id,
+        //             extension_name,
+        //             children: Vec::new(),
+        //         }),
+        //     );
+        // }
 
-        // 5. Query for custom types
-        let type_query = r#"
-            SELECT
-                t.oid::TEXT AS id,
-                t.typname AS name,
-                n.oid::TEXT AS schema_id,
-                CASE
-                    WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
-                         OR n.nspname LIKE 'pg_%'
-                    THEN true
-                    ELSE false
-                END AS is_system,
-                e.extname AS extension_name
-            FROM pg_type t
-            JOIN pg_namespace n ON n.oid = t.typnamespace
-            LEFT JOIN pg_depend d ON d.objid = t.oid AND d.deptype = 'e'
-            LEFT JOIN pg_extension e ON e.oid = d.refobjid
-            WHERE t.typtype IN ('c', 'e', 'd') -- composite, enum, domain types
-              AND NOT EXISTS (SELECT 1 FROM pg_class WHERE oid = t.typrelid) -- exclude table types
-            ORDER BY n.nspname, t.typname
-        "#;
+        // // Query 5: Get indexes
+        // let index_query = r#"
+        //     SELECT
+        //         i.indexrelid::TEXT AS id,
+        //         ic.relname AS name,
+        //         i.indrelid::TEXT AS table_id,
+        //         CASE
+        //             WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
+        //                  OR n.nspname LIKE 'pg_%'
+        //             THEN true
+        //             ELSE false
+        //         END AS is_system
+        //     FROM pg_index i
+        //     JOIN pg_class ic ON ic.oid = i.indexrelid
+        //     JOIN pg_class tc ON tc.oid = i.indrelid
+        //     JOIN pg_namespace n ON tc.relnamespace = n.oid
+        //     ORDER BY ic.relname
+        // "#;
 
-        let type_rows = sqlx::query(type_query).fetch_all(pool).await?;
-        for row in type_rows {
-            let id: String = row.get("id");
-            let name: String = row.get("name");
-            let schema_id: String = row.get("schema_id");
-            let is_system: bool = row.get("is_system");
-            let extension_name: Option<String> = row.get("extension_name");
+        // let index_rows = sqlx::query(index_query).fetch_all(pool).await?;
+        // for row in index_rows {
+        //     let id: String = row.get("id");
+        //     let name: String = row.get("name");
+        //     let table_id: String = row.get("table_id");
+        //     let is_system: bool = row.get("is_system");
 
-            entities.push(DbEntity::CustomType(SchemaLevelEntity {
-                id,
-                name,
-                is_system,
-                extension_name,
-                schema_id,
-            }));
-        }
+        //     entities.insert(
+        //         id.clone(),
+        //         DbEntity::Index(TableLevelEntity {
+        //             id,
+        //             name,
+        //             is_system,
+        //             table_id,
+        //         }),
+        //     );
+        // }
 
-        // 6. Query for indexes
-        let index_query = r#"
-            SELECT
-                i.indexrelid::TEXT AS id,
-                ic.relname AS name,
-                n.oid::TEXT AS schema_id,
-                tc.relname AS table_name,
-                CASE
-                    WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
-                         OR n.nspname LIKE 'pg_%'
-                    THEN true
-                    ELSE false
-                END AS is_system,
-                pg_total_relation_size(i.indexrelid)::BIGINT AS size_bytes_estimate
-            FROM pg_index i
-            JOIN pg_class ic ON ic.oid = i.indexrelid
-            JOIN pg_class tc ON tc.oid = i.indrelid
-            JOIN pg_namespace n ON n.oid = ic.relnamespace
-            WHERE ic.relkind = 'i' -- indexes only
-            ORDER BY n.nspname, ic.relname
-        "#;
+        // // Query 6: Get triggers
+        // let trigger_query = r#"
+        //     SELECT
+        //         t.oid::TEXT AS id,
+        //         t.tgname AS name,
+        //         t.tgrelid::TEXT AS table_id,
+        //         CASE
+        //             WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
+        //                  OR n.nspname LIKE 'pg_%'
+        //             THEN true
+        //             ELSE false
+        //         END AS is_system
+        //     FROM pg_trigger t
+        //     JOIN pg_class c ON c.oid = t.tgrelid
+        //     JOIN pg_namespace n ON c.relnamespace = n.oid
+        //     WHERE NOT t.tgisinternal  -- Exclude internal triggers
+        //     ORDER BY t.tgname
+        // "#;
 
-        let index_rows = sqlx::query(index_query).fetch_all(pool).await?;
-        for row in index_rows {
-            let id: String = row.get("id");
-            let name: String = row.get("name");
-            let schema_id: String = row.get("schema_id");
-            let table_name: String = row.get("table_name");
-            let is_system: bool = row.get("is_system");
-            let size_bytes_estimate: i64 = row.get("size_bytes_estimate");
+        // let trigger_rows = sqlx::query(trigger_query).fetch_all(pool).await?;
+        // for row in trigger_rows {
+        //     let id: String = row.get("id");
+        //     let name: String = row.get("name");
+        //     let table_id: String = row.get("table_id");
+        //     let is_system: bool = row.get("is_system");
 
-            entities.push(DbEntity::Index(IndexEntity {
-                id,
-                name,
-                is_system,
-                extension_name: None, // Indexes typically don't have direct extension associations
-                schema_id,
-                table_name,
-                size_bytes_estimate: size_bytes_estimate.max(0) as u64,
-            }));
-        }
+        //     entities.insert(
+        //         id.clone(),
+        //         DbEntity::Trigger(TableLevelEntity {
+        //             id,
+        //             name,
+        //             is_system,
+        //             table_id,
+        //         }),
+        //     );
+        // }
 
-        // 7. Query for triggers
-        let trigger_query = r#"
-            SELECT
-                t.oid::TEXT AS id,
-                t.tgname AS name,
-                n.oid::TEXT AS schema_id,
-                c.relname AS table_name,
-                CASE
-                    WHEN n.nspname IN ('pg_catalog', 'information_schema', 'pg_toast')
-                         OR n.nspname LIKE 'pg_%'
-                    THEN true
-                    ELSE false
-                END AS is_system
-            FROM pg_trigger t
-            JOIN pg_class c ON c.oid = t.tgrelid
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE NOT t.tgisinternal -- exclude internal triggers
-            ORDER BY n.nspname, c.relname, t.tgname
-        "#;
-
-        let trigger_rows = sqlx::query(trigger_query).fetch_all(pool).await?;
-        for row in trigger_rows {
-            let id: String = row.get("id");
-            let name: String = row.get("name");
-            let schema_id: String = row.get("schema_id");
-            let table_name: String = row.get("table_name");
-            let is_system: bool = row.get("is_system");
-
-            entities.push(DbEntity::Trigger(TriggerEntity {
-                id,
-                name,
-                is_system,
-                extension_name: None, // Triggers typically don't have direct extension associations
-                schema_id,
-                table_name,
-            }));
+        // Update schema entities with their children
+        for (schema_id, children) in schema_children_map {
+            if let Some(DbEntity::Schema(schema)) = entities.get_mut(&schema_id) {
+                schema.children = children;
+            }
         }
 
         Ok(entities)

@@ -69,7 +69,6 @@ impl From<Row> for HashMap<String, serde_json::Value> {
     }
 }
 
-/// Schema entity properties
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaEntity {
@@ -77,71 +76,58 @@ pub struct SchemaEntity {
     pub name: String,
     pub is_system: bool,
     pub extension_name: Option<String>,
+    pub children: Vec<String>,
 }
 
-/// Schema-level entity properties (entities that belong to a schema)
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaLevelEntity {
     pub id: String,
     pub name: String,
     pub is_system: bool,
-    pub extension_name: Option<String>,
     pub schema_id: String,
+    pub extension_name: Option<String>,
 }
 
-/// Table-like entity properties (tables, views, etc. with rows/columns)
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct TableLikeEntity {
-    pub id: String,
-    pub name: String,
-    pub is_system: bool,
-    pub extension_name: Option<String>,
-    pub schema_id: String,
-    pub size_bytes_estimate: u64,
-    pub row_count_estimate: u64,
-    pub column_count: u32,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+// #[serde(rename_all = "camelCase")]
+// pub struct TableLevelEntity {
+//     pub id: String,
+//     pub name: String,
+//     pub is_system: bool,
+//     pub table_id: String,
+// }
 
-/// Index entity properties
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct IndexEntity {
-    pub id: String,
-    pub name: String,
-    pub is_system: bool,
-    pub extension_name: Option<String>,
-    pub schema_id: String,
-    pub table_name: String,
-    pub size_bytes_estimate: u64,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+// #[serde(rename_all = "camelCase")]
+// pub struct DbExtension {
+//     pub id: String,
+//     pub name: String,
+// }
 
-/// Trigger entity properties
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct TriggerEntity {
-    pub id: String,
-    pub name: String,
-    pub is_system: bool,
-    pub extension_name: Option<String>,
-    pub schema_id: String,
-    pub table_name: String,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+// #[serde(rename_all = "camelCase")]
+// pub struct GlobalTrigger {
+//     pub id: String,
+//     pub name: String,
+//     pub is_system: bool,
+//     pub extension_name: Option<String>,
+// }
 
-/// Database entity discriminated union
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind")]
 pub enum DbEntity {
     Schema(SchemaEntity),
-    Table(TableLikeEntity),
-    View(TableLikeEntity),
-    MaterializedView(TableLikeEntity),
-    Function(SchemaLevelEntity),
-    Procedure(SchemaLevelEntity),
-    Sequence(SchemaLevelEntity),
-    CustomType(SchemaLevelEntity),
-    Index(IndexEntity),
-    Trigger(TriggerEntity),
-    ForeignTable(TableLikeEntity),
+    Table(SchemaLevelEntity),
+    View(SchemaLevelEntity),
+    MaterializedView(SchemaLevelEntity),
+    ForeignTable(SchemaLevelEntity),
+    // Procedure(SchemaLevelEntity),
+    // CustomType(SchemaLevelEntity),
+    // Function(SchemaLevelEntity),
+    // Sequence(SchemaLevelEntity),
+    // Trigger(TableLevelEntity),
+    // Index(TableLevelEntity),
+    // Extension(DbExtension),
+    // GlobalTrigger(GlobalTrigger),
 }

@@ -1,7 +1,11 @@
-import React from 'react'
-
-import { type ItemInstance, selectionFeature, syncDataLoaderFeature } from '@headless-tree/core'
+import {
+	type ItemInstance,
+	propMemoizationFeature,
+	selectionFeature,
+	syncDataLoaderFeature,
+} from '@headless-tree/core'
 import { useTree } from '@headless-tree/react'
+import { use$ } from '@legendapp/state/react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 
 import Icons from '#/components/icons'
@@ -9,90 +13,62 @@ import { useDoubleClick } from '#/lib/hooks/use-double-click'
 import Q from '#/lib/queries'
 import type { DbEntity } from '#/lib/taurpc'
 import { cn } from '#/lib/utils'
-import DetailsPanelStore$ from '#/stores/details-panel-store'
 import EditorStore$ from '#/stores/editor-store'
+import WorkbenchStore$ from '#/stores/workbench-store'
 
-const rootItemId = '__root'
+const rootItemId = '__root' as const
 
 export default function DatabaseTab() {
-	const entitiesQuery = useSuspenseQuery(Q.db.entities)
-
-	// Handle single click: select item in details panel
-	const handleSingleClick = React.useCallback((item: ItemInstance<DbEntity>) => {
-		const entity = item.getItemData()
-		DetailsPanelStore$.selectItem({
-			type: 'entity',
-			id: entity.id,
-		})
-	}, [])
-
-	// Handle double click: could expand/collapse folders or open in editor
-	const handleDoubleClick = React.useCallback((item: ItemInstance<DbEntity>) => {
-		const entity = item.getItemData()
-
-		if (item.isFolder()) {
-			// Toggle folder expansion on double click
-			// if (item.isExpanded()) {
-			// 	item.collapse()
-			// } else {
-			// 	item.expand()
-			// }
-		} else {
-			EditorStore$.openTab('entity', entity.id, entity.name)
-		}
-	}, [])
+	const { data: entities } = useSuspenseQuery(Q.db.entities)
+	console.log('entities', entities, Object.keys(entities).length)
+	const treeState$ = WorkbenchStore$.treeStates.database
+	const state = use$(treeState$)
 
 	const { handleClick: onPrimaryAction } = useDoubleClick(
-		handleSingleClick,
-		handleDoubleClick,
-		{ delay: 250 }, // Slightly faster response than default
+		() => {},
+		// Handle double click: could expand/collapse folders or open in editor
+		(item: ItemInstance<TreeItem>) => {
+			const entity = item.getItemData()
+			EditorStore$.openTab('entity', entity.id, entity.name)
+		},
+		{
+			delay: 250,
+		},
 	)
 
 	const tree = useTree<DbEntity>({
+		state,
 		rootItemId,
-		getItemName: (item) => item.getItemData().name,
-		isItemFolder: (item) => item.getItemData().kind === 'Schema',
+		features: [syncDataLoaderFeature, selectionFeature, propMemoizationFeature],
 		onPrimaryAction,
+		getItemName: (item) => item.getItemData().name,
+		isItemFolder: (item) => 'children' in item.getItemData(),
+		setExpandedItems: (u) =>
+			typeof u === 'function'
+				? treeState$.expandedItems.set(u(state.expandedItems ?? []))
+				: treeState$.expandedItems.set(u),
+		setFocusedItem: (u) =>
+			typeof u === 'function'
+				? treeState$.focusedItem.set(u(state.focusedItem ?? null))
+				: treeState$.focusedItem.set(u),
+		setSelectedItems: (u) =>
+			typeof u === 'function'
+				? treeState$.selectedItems.set(u(state.selectedItems ?? []))
+				: treeState$.selectedItems.set(u),
 		dataLoader: {
 			getItem: (itemId) => {
-				const item = entitiesQuery.data.find((e) => e.id === itemId)
+				const item = entities[itemId]
 				if (!item) throw new Error(`Item ${itemId} not found`)
 
 				return item
 			},
 			getChildren: (itemId) => {
-				const publicSchema = entitiesQuery.data.find((e) => e.name === 'public')
-				if (itemId === rootItemId) {
-					return Object.values(entitiesQuery.data)
-						.filter(
-							(e) =>
-								((e.kind === 'Schema' && e.id !== publicSchema?.id) ||
-									(e.kind !== 'Schema' && e.schemaId === publicSchema?.id)) &&
-								e.isSystem === false,
-						)
-						.map((e) => e.id)
-						.sort((a, b) => {
-							// Get the entities for comparison
-							const entityA = entitiesQuery.data.find((e) => e.id === a)
-							const entityB = entitiesQuery.data.find((e) => e.id === b)
+				if (itemId === rootItemId) return getRootChildren(entities as Record<string, DbEntity>)
 
-							if (!entityA || !entityB) return 0
-
-							// Sort schemas last
-							if (entityA.kind === 'Schema' && entityB.kind !== 'Schema') return 1
-							if (entityA.kind !== 'Schema' && entityB.kind === 'Schema') return -1
-
-							// Otherwise sort alphabetically by name
-							return entityA.name.localeCompare(entityB.name)
-						})
-				}
-
-				return entitiesQuery.data
-					.filter((e) => e.kind !== 'Schema' && e.schemaId === itemId)
-					.map((e) => e.id)
+				const entity = entities[itemId] ?? { children: [] }
+				return 'children' in entity ? entity.children : []
 			},
 		},
-		features: [syncDataLoaderFeature, selectionFeature],
 	})
 
 	return (
@@ -148,4 +124,36 @@ function TreeRow({ item }: { item: ItemInstance<DbEntity> }) {
 			</button>
 		</li>
 	)
+}
+
+type TreeItem = DbEntity & {
+	children?: string[]
+}
+
+/**
+ * Build the root level of the tree
+ */
+function getRootChildren(entities: Record<string, DbEntity>): string[] {
+	const schemas = Object.values(entities).filter((e) => e.kind === 'Schema')
+	let publicTables: DbEntity[] = []
+
+	const publicSchemaIndex = schemas.findIndex((e) => e.name === 'public')
+	console.log('publicSchemaIndex', publicSchemaIndex)
+	if (publicSchemaIndex !== -1) {
+		const publicSchema = schemas.splice(publicSchemaIndex, 1)[0]
+		publicTables = Object.values(entities).filter(
+			(e) => e && 'schemaId' in e && e.schemaId === publicSchema.id,
+		) as DbEntity[]
+	}
+
+	return [...publicTables, ...schemas]
+		.sort((a, b) => {
+			// Sort schemas last
+			if (a.kind === 'Schema' && b.kind !== 'Schema') return 1
+			if (a.kind !== 'Schema' && b.kind === 'Schema') return -1
+
+			// Otherwise sort alphabetically by name
+			return a.name.localeCompare(b.name)
+		})
+		.map((e) => e.id)
 }

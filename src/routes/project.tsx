@@ -3,24 +3,26 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { Allotment, LayoutPriority } from 'allotment'
 
 import Q from '#/lib/queries'
-import { queryClient, taurpc } from '#/lib/utils'
+import { queryClient } from '#/lib/utils'
 import StatusBar from '#/routes/-project/status-bar'
-import GlobalStore$ from '#/stores/global-store'
+import DetailsPanelStore$ from '#/stores/details-panel-store'
+import WorkbenchPanelStore$ from '#/stores/workbench-store'
 
 import ProjectDetails from './-project/details'
 import ProjectWorkbench from './-project/workbench'
 
 export const Route = createFileRoute('/project')({
 	loader: async () => {
-		queryClient.prefetchQuery(Q.db.entities)
-		return { project: await taurpc.projects.get_project() }
+		queryClient.prefetchQuery({ ...Q.db.entities, staleTime: Infinity, gcTime: Infinity })
+
+		await Promise.all([queryClient.prefetchQuery(Q.project.get)])
 	},
 	component: ProjectLayout,
 })
 
 function ProjectLayout() {
-	const isDetailsVisible = use$(GlobalStore$.detailsPanel.open)
-	const isWorkbenchVisible = use$(GlobalStore$.workbench.open)
+	const isDetailsVisible = use$(DetailsPanelStore$.open)
+	const isWorkbenchVisible = use$(WorkbenchPanelStore$.open)
 
 	return (
 		<div className="flex size-full flex-col">
@@ -44,7 +46,6 @@ function ProjectLayout() {
 					minSize={170}
 					preferredSize={300}
 					priority={LayoutPriority.Low}
-					snap
 					visible={isDetailsVisible}
 				>
 					<ProjectDetails />

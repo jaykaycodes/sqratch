@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
+import { cn } from '#/lib/utils'
+
 import Icons from './icons'
 
 export function DefaultNotFound() {
@@ -14,11 +16,11 @@ export function DefaultNotFound() {
 	)
 }
 
-export function DefaultPending() {
+export function DefaultPending({ showText = true }: { showText?: boolean }) {
 	return (
 		<div className="flex h-full w-full flex-1 flex-col items-center justify-center gap-4 self-center">
 			<Icons.Loader2 className="h-4 w-4 animate-spin" />
-			<div className="text-muted-foreground text-sm">Loading...</div>
+			<div className={cn('text-muted-foreground text-sm', !showText && 'sr-only')}>Loading...</div>
 		</div>
 	)
 }

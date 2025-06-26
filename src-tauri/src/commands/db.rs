@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use tauri::{Runtime, Window};
 use taurpc;
 
@@ -27,7 +29,9 @@ pub trait DbApi {
     ) -> Result<QueryResult, AppError>;
 
     // Get all entities including schemas as a flat list
-    async fn get_all_entities(window: Window<impl Runtime>) -> Result<Vec<DbEntity>, AppError>;
+    async fn get_all_entities(
+        window: Window<impl Runtime>,
+    ) -> Result<HashMap<String, DbEntity>, AppError>;
 }
 
 #[derive(Clone)]
@@ -71,7 +75,7 @@ impl DbApi for DbApiImpl {
     async fn get_all_entities(
         self,
         window: Window<impl Runtime>,
-    ) -> Result<Vec<DbEntity>, AppError> {
+    ) -> Result<HashMap<String, DbEntity>, AppError> {
         let client = get_window_client(&window)?;
         let mut guard = client.lock().await;
 

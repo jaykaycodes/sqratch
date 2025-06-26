@@ -47,6 +47,6 @@ class Logger {
 	trace = this.createLogMethod('trace', trace)
 }
 
-const Log = new Logger()
+const logger = new Logger()
 
-export default Log
+export default logger

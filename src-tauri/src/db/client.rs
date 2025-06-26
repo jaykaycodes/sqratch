@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use url::Url;
 
@@ -33,7 +35,7 @@ pub trait DatabaseClient: Send + Sync {
     async fn execute_query(&self, sql: &str) -> DbResult<QueryResult>;
 
     /// Get a flat list of all entities including schemas
-    async fn get_all_entities(&self) -> DbResult<Vec<DbEntity>>;
+    async fn get_all_entities(&self) -> DbResult<HashMap<String, DbEntity>>;
 }
 
 /// Creates a database client based on connection info without establishing a connection
