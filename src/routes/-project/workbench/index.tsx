@@ -42,9 +42,7 @@ export default function ProjectWorkbench() {
 function TabContentWrapper({ tab }: { tab: WorkbenchTab }) {
 	return (
 		<$React.div
-			$className={() =>
-				cn('overflow-auto flex-1', tab !== WorkbenchStore$.activeTab.get() && 'hidden')
-			}
+			$className={() => cn('size-full flex-1', tab !== WorkbenchStore$.activeTab.get() && 'hidden')}
 		>
 			<Suspense fallback={<DefaultPending showText={false} />}>
 				{tab === 'Database' ? <DatabaseTab /> : <QueriesTab />}

@@ -1,5 +1,5 @@
 import { use$ } from '@legendapp/state/react'
-import { createFileRoute, Outlet } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { Allotment, LayoutPriority } from 'allotment'
 
 import Q from '#/lib/queries'
@@ -9,6 +9,7 @@ import DetailsPanelStore$ from '#/stores/details-panel-store'
 import WorkbenchPanelStore$ from '#/stores/workbench-store'
 
 import ProjectDetails from './-project/details'
+import EditorLayout from './-project/editor/editor-layout'
 import ProjectWorkbench from './-project/workbench'
 
 export const Route = createFileRoute('/project')({
@@ -38,7 +39,7 @@ function ProjectLayout() {
 				</Allotment.Pane>
 
 				<Allotment.Pane key="main-panel" minSize={300} priority={LayoutPriority.High}>
-					<Outlet />
+					<EditorLayout />
 				</Allotment.Pane>
 
 				<Allotment.Pane

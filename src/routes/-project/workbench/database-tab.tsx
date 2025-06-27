@@ -9,6 +9,7 @@ import { use$ } from '@legendapp/state/react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 
 import Icons from '#/components/icons'
+import ScrollArea from '#/components/ui/scroll-area'
 import { useDoubleClick } from '#/lib/hooks/use-double-click'
 import Q from '#/lib/queries'
 import type { DbEntity } from '#/lib/taurpc'
@@ -72,14 +73,14 @@ export default function DatabaseTab() {
 	})
 
 	return (
-		<div {...tree.getContainerProps()} className="overflow-y-auto h-full rounded-md">
+		<ScrollArea {...tree.getContainerProps()} className="h-full rounded-md">
 			<ul className="menu menu-md [&_li>*]:rounded-none w-full gap-0 p-0">
 				<li className="menu-title">Database</li>
 				{tree.getItems().map((item) => (
 					<TreeRow item={item} key={item.getId()} />
 				))}
 			</ul>
-		</div>
+		</ScrollArea>
 	)
 }
 

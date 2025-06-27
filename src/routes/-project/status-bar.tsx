@@ -25,7 +25,7 @@ function ConnectionStatusItem() {
 	return (
 		<Tooltip placement="top-end" tip={project.db_url}>
 			<DivButton
-				className="cursor-copy btn-ghost bg-base-300 border-none shadow-none hover:bg-base-200"
+				className="btn cursor-copy btn-ghost bg-base-300 border-none shadow-none hover:bg-base-200"
 				onClick={() => copyToClipboard(project.db_url)}
 			>
 				<div

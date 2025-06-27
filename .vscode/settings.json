@@ -21,6 +21,7 @@
 	"tailwindCSS.classFunctions": ["cva", "cn", "twMerge"],
 	// https://github.com/paolotiu/tailwind-intellisense-regex-list
 	"tailwindCSS.experimental.classRegex": [
+		"(?:const|let|var)\\s+[\\w$_][_\\w\\d]*\\s*=\\s*['\\\"](.*?)['\\\"]",
 		// vars
 		[
 			"(?:\\b(?:const|let|var)\\s+)?[\\w$_]*(?:[Ss]tyles|[Cc]lasses|[Cc]lassnames)[\\w\\d]*\\s*(?:=|\\+=)\\s*['\"]([^'\"]*)['\"]"
