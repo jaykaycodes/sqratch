@@ -12,7 +12,7 @@ type BarSize = keyof typeof barSize
 interface ScrollAreaProps extends React.ComponentProps<typeof ScrollAreaPrimitive.Root> {
 	horizontal?: boolean
 	vertical?: boolean
-	size?: BarSize
+	scrollBarSize?: BarSize
 }
 
 export default function ScrollArea({
@@ -20,7 +20,7 @@ export default function ScrollArea({
 	children,
 	horizontal = true,
 	vertical = true,
-	size = 'md',
+	scrollBarSize = 'md',
 	...props
 }: ScrollAreaProps) {
 	return (
@@ -31,14 +31,14 @@ export default function ScrollArea({
 			{...props}
 		>
 			<ScrollAreaPrimitive.Viewport
-				className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none overscroll-none focus-visible:ring-[3px] focus-visible:outline-1"
+				className="size-full rounded-[inherit] outline-none overscroll-none"
 				data-slot="scroll-area-viewport"
 			>
 				{children}
 			</ScrollAreaPrimitive.Viewport>
 
-			{horizontal && <ScrollBar forceMount orientation="horizontal" size={size} />}
-			{vertical && <ScrollBar forceMount orientation="vertical" size={size} />}
+			{horizontal && <ScrollBar forceMount orientation="horizontal" size={scrollBarSize} />}
+			{vertical && <ScrollBar forceMount orientation="vertical" size={scrollBarSize} />}
 
 			<ScrollAreaPrimitive.Corner />
 		</ScrollAreaPrimitive.Root>
@@ -48,6 +48,7 @@ export default function ScrollArea({
 interface ScrollBarProps
 	extends React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> {
 	size?: BarSize
+	offset?: number
 }
 
 function ScrollBar({ className, orientation = 'vertical', size = 'md', ...props }: ScrollBarProps) {
@@ -78,7 +79,7 @@ function ScrollBar({ className, orientation = 'vertical', size = 'md', ...props 
 		>
 			<ScrollAreaPrimitive.ScrollAreaThumb
 				className={cn(
-					'bg-base-content relative flex-1 rounded-none',
+					'bg-base-content/25 relative flex-1 rounded-none',
 					'transition-opacity duration-inherit ease-inherit',
 				)}
 				data-slot="scroll-area-thumb"

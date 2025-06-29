@@ -11,6 +11,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import Icons from '#/components/icons'
 import ScrollArea from '#/components/ui/scroll-area'
 import { useDoubleClick } from '#/lib/hooks/use-double-click'
+import logger from '#/lib/logger'
 import Q from '#/lib/queries'
 import type { DbEntity } from '#/lib/taurpc'
 import { cn } from '#/lib/utils'
@@ -30,7 +31,16 @@ export default function DatabaseTab() {
 		// Handle double click: could expand/collapse folders or open in editor
 		(item: ItemInstance<TreeItem>) => {
 			const entity = item.getItemData()
-			EditorStore$.openTab('entity', entity.id, entity.name)
+			switch (entity.kind) {
+				case 'Table':
+				case 'View':
+				case 'MaterializedView':
+				case 'ForeignTable':
+					EditorStore$.openTab('table', entity.id, entity.name)
+					break
+				default:
+					logger.warn(`Unimplemented entity kind: ${entity.kind}`)
+			}
 		},
 		{
 			delay: 250,

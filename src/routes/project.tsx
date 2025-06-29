@@ -9,7 +9,7 @@ import DetailsPanelStore$ from '#/stores/details-panel-store'
 import WorkbenchPanelStore$ from '#/stores/workbench-store'
 
 import ProjectDetails from './-project/details'
-import EditorLayout from './-project/editor/editor-layout'
+import EditorLayout from './-project/editor'
 import ProjectWorkbench from './-project/workbench'
 
 export const Route = createFileRoute('/project')({
