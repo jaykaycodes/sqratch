@@ -8,11 +8,15 @@ export interface EditorTab {
 	id: EditorTabId
 	resourceId: string
 	resourceType: EditorTabType
+	name: string
 	isTemp?: boolean
 	isDirty?: boolean
 }
 
-const activeTabHistory = new LRUCache<EditorTabId, number>({ max: 100 })
+const activeTabHistory = new LRUCache<EditorTabId, number>({
+	max: 100,
+	ttl: Infinity,
+})
 
 const EditorStore$ = observable({
 	tabs: new Map<EditorTabId, EditorTab>(),

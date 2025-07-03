@@ -2,7 +2,7 @@ import { createQueryKeyStore, type inferQueryKeyStore } from '@lukemorales/query
 
 import { taurpc } from './utils'
 
-const Q = createQueryKeyStore({
+const querySchema = {
 	project: {
 		get: {
 			queryKey: null,
@@ -19,8 +19,20 @@ const Q = createQueryKeyStore({
 			queryFn: taurpc.db.get_all_entities,
 		},
 	},
-})
+} as const satisfies Parameters<typeof createQueryKeyStore>[0]
+
+const Q = createQueryKeyStore(querySchema)
 
 export default Q
 
 export type QueryKeys = inferQueryKeyStore<typeof Q>
+
+export type QueryData = {
+	[TKey in keyof typeof querySchema]: {
+		[TNestedKey in keyof (typeof querySchema)[TKey]]: (typeof querySchema)[TKey][TNestedKey] extends {
+			queryFn: infer Fn extends (...args: any) => any
+		}
+			? Awaited<ReturnType<Fn>>
+			: never
+	}
+}
