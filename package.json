@@ -3,9 +3,7 @@
 	"private": false,
 	"version": "0.1.0",
 	"type": "module",
-	"bin": {
-		"sqratch": "./dist/cli/index.js"
-	},
+	"license": "GPL-3.0",
 	"scripts": {
 		"dev:vite": "bunx --bun vite",
 		"dev": "tauri dev",
